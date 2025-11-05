@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Footer } from "@/components/Footer";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { LogOut, Plus, Users, MessageSquare } from "lucide-react";
+import { CreateRoomDialog } from "@/components/CreateRoomDialog";
+import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { LogOut, Users, MessageSquare, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Profile {
@@ -15,13 +19,33 @@ interface Profile {
   avatar_url: string | null;
 }
 
+interface Room {
+  id: string;
+  name: string;
+  description: string | null;
+  is_password_protected: boolean;
+  created_at: string;
+  expires_at: string | null;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  description: string | null;
+  is_password_protected: boolean;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadProfile();
+    loadRoomsAndGroups();
   }, []);
 
   const loadProfile = async () => {
@@ -43,6 +67,35 @@ export default function Dashboard() {
       setProfile(data);
     } catch (error: any) {
       toast.error("Failed to load profile");
+    }
+  };
+
+  const loadRoomsAndGroups = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load rooms
+      const { data: roomsData, error: roomsError } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("creator_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (roomsError) throw roomsError;
+      setRooms(roomsData || []);
+
+      // Load groups
+      const { data: groupsData, error: groupsError } = await supabase
+        .from("groups")
+        .select("*")
+        .eq("creator_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (groupsError) throw groupsError;
+      setGroups(groupsData || []);
+    } catch (error: any) {
+      toast.error("Failed to load spaces");
     } finally {
       setLoading(false);
     }
@@ -98,10 +151,7 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button className="w-full gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Room
-                </Button>
+                <CreateRoomDialog />
               </CardContent>
             </Card>
 
@@ -114,27 +164,115 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="secondary" className="w-full gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Group
-                </Button>
+                <CreateGroupDialog />
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Spaces</CardTitle>
-              <CardDescription>
-                Rooms and groups you've created or joined
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No spaces yet. Create your first Room or Group above!</p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Rooms Section */}
+          {rooms.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Your Rooms
+                </CardTitle>
+                <CardDescription>
+                  Interactive short-lived spaces
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {rooms.map((room) => (
+                    <div
+                      key={room.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold">{room.name}</h4>
+                          {room.is_password_protected && (
+                            <Badge variant="secondary" className="text-xs">
+                              Protected
+                            </Badge>
+                          )}
+                        </div>
+                        {room.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {room.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Expires: {new Date(room.expires_at!).toLocaleString()}
+                        </div>
+                      </div>
+                      <ShareLinkButton id={room.id} type="room" name={room.name} />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Groups Section */}
+          {groups.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Your Groups
+                </CardTitle>
+                <CardDescription>
+                  Long-term collaboration spaces
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {groups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold">{group.name}</h4>
+                          {group.is_password_protected && (
+                            <Badge variant="secondary" className="text-xs">
+                              Protected
+                            </Badge>
+                          )}
+                        </div>
+                        {group.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {group.description}
+                          </p>
+                        )}
+                      </div>
+                      <ShareLinkButton id={group.id} type="group" name={group.name} />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty State */}
+          {rooms.length === 0 && groups.length === 0 && !loading && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Spaces</CardTitle>
+                <CardDescription>
+                  Rooms and groups you've created
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No spaces yet. Create your first Room or Group above!</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
 
