@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Footer } from "@/components/Footer";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { LogOut, Plus, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,7 +67,8 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">PrivyRooms</h1>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Avatar>
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback>{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
