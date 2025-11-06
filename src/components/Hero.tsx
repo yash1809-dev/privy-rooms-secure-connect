@@ -40,6 +40,11 @@ export const Hero = () => {
               Sign In
             </Button>
           </Link>
+          <Link to="/features">
+            <Button size="lg" variant="secondary" className="backdrop-blur-sm">
+              See Features
+            </Button>
+          </Link>
         </div>
 
         {/* Features Grid */}
