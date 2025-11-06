@@ -132,7 +132,15 @@ export default function Group() {
         created_by: user.id,
       });
       if (error) {
-        toast.error("Failed to create poll: " + error.message);
+        // If the table wasn't created yet, guide the user
+        const msg = (error as any)?.message || "Unknown error";
+        if (msg.includes("group_polls") || msg.includes("schema cache") || (error as any)?.code === '42P01') {
+          toast.error("Polls not initialized. Please run Supabase migrations.", {
+            description: "Run: supabase db push (see README)"
+          });
+        } else {
+          toast.error("Failed to create poll: " + msg);
+        }
         return;
       }
       setPollDialogOpen(false);
@@ -140,7 +148,14 @@ export default function Group() {
       setPollOptions(["", ""]);
       toast.success("Poll created!");
     } catch (e: any) {
-      toast.error("Failed to create poll: " + (e.message || "Unknown error"));
+      const msg = e?.message || "Unknown error";
+      if (msg.includes("group_polls") || msg.includes("schema cache")) {
+        toast.error("Polls not initialized. Please run Supabase migrations.", {
+          description: "Run: supabase db push (see README)"
+        });
+      } else {
+        toast.error("Failed to create poll: " + msg);
+      }
     }
   };
 

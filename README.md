@@ -60,6 +60,35 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Database setup (Supabase)
+
+This app ships with migrations for Rooms, Groups, Followers, Chat, Polls, Notes, and Recaps.
+
+Apply them to your Supabase project using the Supabase CLI:
+
+```bash
+# Requires supabase CLI configured (SUPABASE_ACCESS_TOKEN)
+npm run db:push
+```
+
+If your local DB gets out of sync, reset then push:
+
+```bash
+npm run db:reset
+npm run db:push
+```
+
+Alternatively, open Supabase SQL Editor and run these files in order:
+
+- supabase/migrations/20251105073237_8b0876bf-ded0-44b0-975b-35dd3cf3910d.sql
+- supabase/migrations/20251105073246_423d895d-5d96-4ff9-b8b9-62bab42164c6.sql
+- supabase/migrations/20251106000000_add_follows_table.sql
+- supabase/migrations/20251106001000_add_coffee_url_to_profiles.sql
+- supabase/migrations/20251106003000_groups_members_messages.sql
+- supabase/migrations/20251106012000_group_realtime_artifacts.sql
+
+After applying migrations, restart the app and try creating a poll again.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/3d70247f-a80a-4c60-96e9-667bf4774951) and click on Share -> Publish.
