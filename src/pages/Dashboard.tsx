@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { LogOut, Users, MessageSquare, Clock } from "lucide-react";
+import { LogOut, Users, MessageSquare, Clock, User } from "lucide-react";
 import { toast } from "sonner";
 import MiniDashboard from "@/components/MiniDashboard";
 import RoomRecap from "@/components/RoomRecap";
@@ -138,6 +138,9 @@ export default function Dashboard() {
               <p className="font-medium">{profile?.username}</p>
               <p className="text-sm text-muted-foreground">{profile?.email}</p>
             </div>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/profile")}>
+              <User className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-5 w-5" />
             </Button>

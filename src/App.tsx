@@ -10,6 +10,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+            <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
