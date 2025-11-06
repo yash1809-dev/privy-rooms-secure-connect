@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import MiniDashboard from "@/components/MiniDashboard";
 import RoomRecap from "@/components/RoomRecap";
 import SmartPolls from "@/components/SmartPolls";
 import VoiceNotesToText from "@/components/VoiceNotesToText";
+import { MessageSquare, BarChart3 } from "lucide-react";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
 
@@ -24,16 +27,26 @@ export default function Group() {
   const [followers, setFollowers] = useState<ProfileRow[]>([]);
   const [following, setFollowing] = useState<ProfileRow[]>([]);
   const [me, setMe] = useState<ProfileRow | null>(null);
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    load();
     if (!id) return;
+    load();
     const channel = supabase.channel(`group_${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_messages', filter: `group_id=eq.${id}` }, loadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_messages', filter: `group_id=eq.${id}` }, () => {
+        loadMessages();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const load = async () => {
     try {
@@ -51,7 +64,16 @@ export default function Group() {
   };
 
   const loadMessages = async () => {
-    const { data } = await supabase.from("group_messages").select("*, sender:profiles(id,username,avatar_url)").eq("group_id", id).order("created_at", { ascending: true });
+    if (!id) return;
+    const { data, error } = await supabase
+      .from("group_messages")
+      .select("*, sender:profiles(id,username,avatar_url)")
+      .eq("group_id", id)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Error loading messages:", error);
+      return;
+    }
     setMessages(data || []);
   };
 
@@ -80,12 +102,45 @@ export default function Group() {
   const send = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !text.trim()) return;
-      await supabase.from("group_messages").insert({ group_id: id, sender_id: user.id, content: text.trim() });
+      if (!user || !text.trim() || !id) return;
+      const { error } = await supabase.from("group_messages").insert({ group_id: id, sender_id: user.id, content: text.trim() });
+      if (error) {
+        console.error("Error sending message:", error);
+        toast.error("Failed to send: " + error.message);
+        return;
+      }
       setText("");
+      // Reload messages immediately
       await loadMessages();
-    } catch (e) {
-      toast.error("Failed to send");
+    } catch (e: any) {
+      console.error("Send error:", e);
+      toast.error("Failed to send: " + (e.message || "Unknown error"));
+    }
+  };
+
+  const createPoll = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !id || !pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) {
+        toast.error("Please provide a question and at least 2 options");
+        return;
+      }
+      const { error } = await supabase.from("group_polls").insert({
+        group_id: id,
+        question: pollQuestion.trim(),
+        options: pollOptions.filter(o => o.trim()),
+        created_by: user.id,
+      });
+      if (error) {
+        toast.error("Failed to create poll: " + error.message);
+        return;
+      }
+      setPollDialogOpen(false);
+      setPollQuestion("");
+      setPollOptions(["", ""]);
+      toast.success("Poll created!");
+    } catch (e: any) {
+      toast.error("Failed to create poll: " + (e.message || "Unknown error"));
     }
   };
 
@@ -137,23 +192,91 @@ export default function Group() {
                 <RoomRecap groupId={id} />
                 <SmartPolls groupId={id} />
                 <VoiceNotesToText groupId={id} />
-                <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background">
+                <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background mb-2">
+                  {messages.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>
+                  )}
                   {messages.map((m) => (
                     <div key={m.id} className="flex items-start gap-2 mb-3">
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={m.sender?.avatar_url || undefined} />
                         <AvatarFallback>{m.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="text-sm font-medium">{m.sender?.username}</div>
-                        <div className="text-sm">{m.content}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{m.sender?.username || "Unknown"}</div>
+                        <div className="text-sm break-words">{m.content}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {m.created_at ? new Date(m.created_at).toLocaleTimeString() : ""}
+                        </div>
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <Input placeholder="Type a message" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' ? send() : undefined} />
-                  <Button onClick={send}>Send</Button>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Type a message" 
+                    value={text} 
+                    onChange={(e) => setText(e.target.value)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        send();
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="icon" title="Create Poll">
+                        <BarChart3 className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create Poll</DialogTitle>
+                        <DialogDescription>Create a poll for the group to vote on</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="poll-question">Question</Label>
+                          <Input
+                            id="poll-question"
+                            placeholder="What should we do?"
+                            value={pollQuestion}
+                            onChange={(e) => setPollQuestion(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Options (at least 2)</Label>
+                          {pollOptions.map((opt, idx) => (
+                            <Input
+                              key={idx}
+                              placeholder={`Option ${idx + 1}`}
+                              value={opt}
+                              onChange={(e) => {
+                                const newOpts = [...pollOptions];
+                                newOpts[idx] = e.target.value;
+                                setPollOptions(newOpts);
+                              }}
+                            />
+                          ))}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPollOptions([...pollOptions, ""])}
+                          >
+                            Add Option
+                          </Button>
+                        </div>
+                        <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button onClick={send} disabled={!text.trim()}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Send
+                  </Button>
                 </div>
               </TabsContent>
               <TabsContent value="members">
