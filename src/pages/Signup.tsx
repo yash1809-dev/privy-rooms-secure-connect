@@ -91,7 +91,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--gradient-subtle)] p-4">
-      <Card className="w-full max-w-md shadow-[var(--shadow-smooth)]">
+      <Card className="w-full max-w-md shadow-[var(--shadow-smooth)] bg-card text-card-foreground">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Shield className="h-12 w-12 text-primary" />

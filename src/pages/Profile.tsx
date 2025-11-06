@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -170,6 +171,7 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
 
+        <AvatarUploader onUpdated={async () => await load()} />
         <div className="mt-6">
           <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
         </div>
@@ -178,4 +180,44 @@ export default function Profile() {
   );
 }
 
+function AvatarUploader({ onUpdated }: { onUpdated: () => Promise<void> | void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const upload = async () => {
+    try {
+      if (!file) return;
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const path = `avatars/${user.id}-${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
+      await onUpdated();
+      toast.success("Profile picture updated");
+      setFile(null);
+    } catch (e: any) {
+      toast.error("Failed to upload avatar (ensure 'avatars' bucket is public)");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Change Profile Picture</CardTitle>
+        <CardDescription>Upload a new profile picture</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-2">
+          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <Button onClick={upload} disabled={uploading || !file}>{uploading ? "Uploading..." : "Upload"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
