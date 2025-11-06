@@ -7,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import MiniDashboard from "@/components/MiniDashboard";
+import RoomRecap from "@/components/RoomRecap";
+import SmartPolls from "@/components/SmartPolls";
+import VoiceNotesToText from "@/components/VoiceNotesToText";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
 
@@ -23,8 +27,11 @@ export default function Group() {
 
   useEffect(() => {
     load();
-    const int = setInterval(loadMessages, 2500);
-    return () => clearInterval(int);
+    if (!id) return;
+    const channel = supabase.channel(`group_${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_messages', filter: `group_id=eq.${id}` }, loadMessages)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -126,6 +133,10 @@ export default function Group() {
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
               <TabsContent value="chat">
+                <MiniDashboard groupId={id} />
+                <RoomRecap groupId={id} />
+                <SmartPolls groupId={id} />
+                <VoiceNotesToText groupId={id} />
                 <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background">
                   {messages.map((m) => (
                     <div key={m.id} className="flex items-start gap-2 mb-3">

@@ -127,6 +127,41 @@ export type Database = {
           }
         ]
       }
+      group_notes: {
+        Row: { id: string; group_id: string; author_id: string; content: string; created_at: string | null }
+        Insert: { id?: string; group_id: string; author_id: string; content: string; created_at?: string | null }
+        Update: { id?: string; group_id?: string; author_id?: string; content?: string; created_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "group_notes_group_id_fkey", columns: ["group_id"], isOneToOne: false, referencedRelation: "groups", referencedColumns: ["id"] },
+          { foreignKeyName: "group_notes_author_id_fkey", columns: ["author_id"], isOneToOne: false, referencedRelation: "profiles", referencedColumns: ["id"] },
+        ]
+      }
+      group_polls: {
+        Row: { id: string; group_id: string; question: string; options: string[]; created_by: string; created_at: string | null }
+        Insert: { id?: string; group_id: string; question: string; options: string[]; created_by: string; created_at?: string | null }
+        Update: { id?: string; group_id?: string; question?: string; options?: string[]; created_by?: string; created_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "group_polls_group_id_fkey", columns: ["group_id"], isOneToOne: false, referencedRelation: "groups", referencedColumns: ["id"] },
+          { foreignKeyName: "group_polls_created_by_fkey", columns: ["created_by"], isOneToOne: false, referencedRelation: "profiles", referencedColumns: ["id"] },
+        ]
+      }
+      group_poll_votes: {
+        Row: { poll_id: string; voter_id: string; option_index: number; created_at: string | null }
+        Insert: { poll_id: string; voter_id: string; option_index: number; created_at?: string | null }
+        Update: { poll_id?: string; voter_id?: string; option_index?: number; created_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "group_poll_votes_poll_id_fkey", columns: ["poll_id"], isOneToOne: false, referencedRelation: "group_polls", referencedColumns: ["id"] },
+          { foreignKeyName: "group_poll_votes_voter_id_fkey", columns: ["voter_id"], isOneToOne: false, referencedRelation: "profiles", referencedColumns: ["id"] },
+        ]
+      }
+      group_recaps: {
+        Row: { id: string; group_id: string; content: string; created_at: string | null }
+        Insert: { id?: string; group_id: string; content: string; created_at?: string | null }
+        Update: { id?: string; group_id?: string; content?: string; created_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "group_recaps_group_id_fkey", columns: ["group_id"], isOneToOne: false, referencedRelation: "groups", referencedColumns: ["id"] },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

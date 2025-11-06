@@ -55,6 +55,9 @@ export const CreateGroupDialog = () => {
 
       if (error) throw error;
 
+      // Ensure creator is a member/admin for permissions
+      await supabase.from("group_members").insert({ group_id: data.id, user_id: user.id, role: "admin" });
+
       toast.success("Group created successfully!", {
         description: "Share the link to invite others"
       });

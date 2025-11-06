@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
-export default function VoiceNotesToText() {
+export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
   const [transcript, setTranscript] = useState("");
   const [recording, setRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const interimRef = useRef("");
 
   useEffect(() => {
     // Basic browser speech recognition fallback
@@ -15,12 +17,23 @@ export default function VoiceNotesToText() {
       recognition.continuous = true;
       recognition.lang = "en-US";
       recognition.interimResults = true;
-      recognition.onresult = (event: any) => {
-        let combined = "";
+      recognition.onresult = async (event: any) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          combined += event.results[i][0].transcript;
+          const result = event.results[i];
+          const text = result[0].transcript;
+          if (result.isFinal) {
+            interimRef.current = "";
+            setTranscript((prev) => (prev ? prev + "\n" : "") + text);
+            if (groupId) {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                await supabase.from("group_notes").insert({ group_id: groupId, author_id: user.id, content: text });
+              }
+            }
+          } else {
+            interimRef.current = text;
+          }
         }
-        setTranscript((prev) => (prev + " " + combined).trim());
       };
       recognitionRef.current = recognition;
     }
@@ -52,7 +65,7 @@ export default function VoiceNotesToText() {
           {recording ? "Stop Recording" : "Start Recording"}
         </Button>
         <div className="p-3 rounded border min-h-20 text-sm whitespace-pre-wrap">
-          {transcript || "Your transcription will appear here..."}
+          {groupId ? (transcript || "Your transcription will appear here...") : "No data available"}
         </div>
       </CardContent>
     </Card>
