@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 
 export const Footer = () => {
   const handleDonate = () => {
-    // UPI payment link - replace with your actual UPI ID
-    const upiLink = "upi://pay?pa=yourupi@upi&pn=PrivyRooms&am=100&cu=INR";
-    window.open(upiLink, "_blank");
+    // Prefer a Buy Me a Coffee (or any support) link via env var; fallback to UPI
+    const coffee = import.meta.env.VITE_COFFEE_URL as string | undefined;
+    const upiFallback = "upi://pay?pa=yourupi@upi&pn=PrivyRooms&am=100&cu=INR";
+    const href = coffee && coffee.trim().length > 0 ? coffee : upiFallback;
+    window.open(href, "_blank");
   };
 
   return (

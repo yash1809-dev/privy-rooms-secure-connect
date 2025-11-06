@@ -116,13 +116,7 @@ export default function Profile() {
               <div className="text-xs text-muted-foreground mt-1">
                 {followers.length} followers • {following.length} following
               </div>
-              {me?.coffee_url && (
-                <div className="mt-2">
-                  <a href={me.coffee_url} target="_blank" rel="noreferrer">
-                    <Button size="sm" variant="secondary">Buy me a coffee</Button>
-                  </a>
-                </div>
-              )}
+              {/* Buy me a coffee button removed as requested; global footer button remains */}
             </div>
           </CardContent>
         </Card>
@@ -176,54 +170,11 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
 
-        <CoffeeLinkEditor currentUrl={me?.coffee_url || ""} onSaved={async () => await load()} />
-
         <div className="mt-6">
           <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
         </div>
       </div>
     </div>
-  );
-}
-
-function CoffeeLinkEditor({ currentUrl, onSaved }: { currentUrl: string; onSaved: () => Promise<void> | void }) {
-  const [url, setUrl] = useState(currentUrl);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => { setUrl(currentUrl); }, [currentUrl]);
-
-  const save = async () => {
-    try {
-      setSaving(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      await supabase.from("profiles").update({ coffee_url: url || null }).eq("id", user.id);
-      await onSaved();
-      toast.success("Coffee link updated");
-    } catch (e: any) {
-      toast.error("Failed to update coffee link");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Buy Me a Coffee</CardTitle>
-        <CardDescription>Add your coffee/support link (e.g., https://buymeacoffee.com/yourname)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 px-3 py-2 border rounded bg-background"
-            placeholder="https://buymeacoffee.com/yourname"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <Button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
