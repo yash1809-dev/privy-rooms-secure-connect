@@ -12,6 +12,12 @@ import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { LogOut, Users, MessageSquare, Clock } from "lucide-react";
 import { toast } from "sonner";
+import MiniDashboard from "@/components/MiniDashboard";
+import RoomRecap from "@/components/RoomRecap";
+import SmartPolls from "@/components/SmartPolls";
+import VoiceNotesToText from "@/components/VoiceNotesToText";
+import RoomThemeSelector, { RoomThemeBadge, ThemeKey } from "@/components/RoomThemeSelector";
+import RoomStatusMood, { RoomMoodBadge, MoodKey } from "@/components/RoomStatusMood";
 
 interface Profile {
   username: string;
@@ -42,6 +48,8 @@ export default function Dashboard() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<ThemeKey>("default");
+  const [mood, setMood] = useState<MoodKey>("studying");
 
   useEffect(() => {
     loadProfile();
@@ -141,6 +149,26 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Your Workspace</h2>
 
+          {/* Mini-dashboard & AI Recap section */}
+          <MiniDashboard />
+          <RoomRecap />
+          <SmartPolls />
+          <VoiceNotesToText />
+
+          {/* Room theme + mood controls */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Room Appearance & Status</CardTitle>
+              <CardDescription>Customize the vibe and look</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+                <RoomThemeSelector value={theme} onChange={setTheme} compact />
+                <RoomStatusMood value={mood} onChange={setMood} compact />
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <Card className="hover:shadow-[var(--shadow-smooth)] transition-shadow cursor-pointer">
               <CardHeader>
@@ -196,6 +224,8 @@ export default function Dashboard() {
                               Protected
                             </Badge>
                           )}
+                          <RoomThemeBadge theme={theme} />
+                          <RoomMoodBadge mood={mood} />
                         </div>
                         {room.description && (
                           <p className="text-sm text-muted-foreground mb-2">
@@ -242,6 +272,8 @@ export default function Dashboard() {
                               Protected
                             </Badge>
                           )}
+                          <RoomThemeBadge theme={theme} />
+                          <RoomMoodBadge mood={mood} />
                         </div>
                         {group.description && (
                           <p className="text-sm text-muted-foreground">
