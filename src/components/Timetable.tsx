@@ -252,37 +252,35 @@ export default function Timetable() {
                 {dayLectures.length === 0 ? (
                   <div className="text-sm text-muted-foreground py-2">No lectures scheduled</div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-wrap gap-3 overflow-x-auto pb-2">
                     {dayLectures.map((lecture) => (
                       <div
                         key={lecture.id}
-                        className="p-3 bg-accent/50 rounded border cursor-pointer hover:bg-accent transition-colors"
+                        className="p-3 bg-accent/50 rounded border cursor-pointer hover:bg-accent transition-colors min-w-[200px] flex-shrink-0"
                         onClick={() => openEditDialog(lecture)}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-muted-foreground">{lecture.time}</span>
-                            </div>
-                            <div className="font-semibold text-base">{lecture.subject}</div>
-                            {lecture.instructor && (
-                              <div className="text-sm text-muted-foreground mt-1">Instructor: {lecture.instructor}</div>
-                            )}
-                            {lecture.location && (
-                              <div className="text-sm text-muted-foreground">Location: {lecture.location}</div>
-                            )}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <span className="text-xs font-medium text-muted-foreground">{lecture.time}</span>
                           </div>
+                          <div className="font-semibold text-sm">{lecture.subject}</div>
+                          {lecture.instructor && (
+                            <div className="text-xs text-muted-foreground">Instructor: {lecture.instructor}</div>
+                          )}
+                          {lecture.location && (
+                            <div className="text-xs text-muted-foreground">Location: {lecture.location}</div>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 flex-shrink-0"
+                            className="h-6 w-6 self-end mt-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (lecture.id) deleteLecture(lecture.id);
                             }}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
