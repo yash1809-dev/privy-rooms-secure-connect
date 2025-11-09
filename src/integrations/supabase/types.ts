@@ -162,6 +162,14 @@ export type Database = {
           { foreignKeyName: "group_recaps_group_id_fkey", columns: ["group_id"], isOneToOne: false, referencedRelation: "groups", referencedColumns: ["id"] },
         ]
       }
+      timetable_lectures: {
+        Row: { id: string; user_id: string; day: string; time: string; subject: string; instructor: string | null; location: string | null; created_at: string | null }
+        Insert: { id?: string; user_id: string; day: string; time: string; subject: string; instructor?: string | null; location?: string | null; created_at?: string | null }
+        Update: { id?: string; user_id?: string; day?: string; time?: string; subject?: string; instructor?: string | null; location?: string | null; created_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "timetable_lectures_user_id_fkey", columns: ["user_id"], isOneToOne: false, referencedRelation: "profiles", referencedColumns: ["id"] },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

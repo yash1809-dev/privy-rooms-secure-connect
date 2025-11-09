@@ -81,6 +81,8 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
     void doToggle();
   };
 
+  const displayText = transcript + (interimRef.current ? (transcript ? "\n" : "") + interimRef.current : "");
+
   return (
     <Card className="mb-8">
       <CardHeader>
@@ -92,12 +94,10 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
           {recording ? "Stop Recording" : "Start Recording"}
         </Button>
         {status && <div className="text-xs text-muted-foreground">{status}</div>}
-        <div className="p-3 rounded border min-h-20 text-sm whitespace-pre-wrap">
-          {groupId
-            ? ((transcript + (interimRef.current ? (transcript ? "\n" : "") + interimRef.current : "")) || "Your transcription will appear here...")
-            : "No data available"}
+        <div className="p-3 rounded border min-h-32 max-h-64 overflow-y-auto bg-background text-sm whitespace-pre-wrap">
+          {displayText || "Your transcription will appear here..."}
         </div>
-        {!supported && <div className="text-xs text-muted-foreground">Speech recognition not supported in this browser.</div>}
+        {!supported && <div className="text-xs text-muted-foreground">Speech recognition not supported in this browser. Try Chrome on desktop or Android.</div>}
       </CardContent>
     </Card>
   );

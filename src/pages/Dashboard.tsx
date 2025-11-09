@@ -12,10 +12,8 @@ import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { LogOut, Users, MessageSquare, Clock, User } from "lucide-react";
 import { toast } from "sonner";
-import MiniDashboard from "@/components/MiniDashboard";
-import RoomRecap from "@/components/RoomRecap";
-import SmartPolls from "@/components/SmartPolls";
 import VoiceNotesToText from "@/components/VoiceNotesToText";
+import Timetable from "@/components/Timetable";
 import RoomThemeSelector, { RoomThemeBadge, ThemeKey } from "@/components/RoomThemeSelector";
 import RoomStatusMood, { RoomMoodBadge, MoodKey } from "@/components/RoomStatusMood";
 
@@ -152,10 +150,10 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Your Workspace</h2>
 
-          {/* Mini-dashboard & AI Recap section */}
-          <MiniDashboard />
-          <RoomRecap />
-          <SmartPolls />
+          {/* Timetable */}
+          <Timetable />
+
+          {/* Voice Notes to Text */}
           <VoiceNotesToText />
 
           {/* Room theme + mood controls */}
