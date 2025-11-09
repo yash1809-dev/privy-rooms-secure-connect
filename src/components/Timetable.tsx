@@ -11,7 +11,16 @@ import { Plus, Clock, Trash2 } from "lucide-react";
 interface Lecture {
   id?: string;
   day: string;
-  time: string;
+  time: string; // Stored as "HH:MM-HH:MM" format
+  subject: string;
+  instructor?: string;
+  location?: string;
+}
+
+interface LectureFormData {
+  day: string;
+  startTime: string;
+  endTime: string;
   subject: string;
   instructor?: string;
   location?: string;
@@ -23,9 +32,10 @@ export default function Timetable() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
-  const [formData, setFormData] = useState<Lecture>({
+  const [formData, setFormData] = useState<LectureFormData>({
     day: "Monday",
-    time: "",
+    startTime: "",
+    endTime: "",
     subject: "",
     instructor: "",
     location: "",
@@ -68,15 +78,18 @@ export default function Timetable() {
         toast.error("Please log in to add lectures");
         return;
       }
-      if (!formData.time || !formData.subject || !formData.day) {
-        toast.error("Please fill in day, time, and subject");
+      if (!formData.startTime || !formData.endTime || !formData.subject || !formData.day) {
+        toast.error("Please fill in day, start time, end time, and subject");
         return;
       }
+      
+      // Combine start and end time into "HH:MM-HH:MM" format
+      const timeRange = `${formData.startTime}-${formData.endTime}`;
       
       const lectureData = {
         user_id: user.id,
         day: formData.day,
-        time: formData.time,
+        time: timeRange,
         subject: formData.subject.trim(),
         instructor: formData.instructor?.trim() || null,
         location: formData.location?.trim() || null,
@@ -119,7 +132,7 @@ export default function Timetable() {
       }
       setDialogOpen(false);
       setEditingLecture(null);
-      setFormData({ day: "Monday", time: "", subject: "", instructor: "", location: "" });
+      setFormData({ day: "Monday", startTime: "", endTime: "", subject: "", instructor: "", location: "" });
       await loadLectures();
     } catch (e: any) {
       console.error("Save lecture error:", e);
@@ -146,13 +159,22 @@ export default function Timetable() {
 
   const openEditDialog = (lecture: Lecture) => {
     setEditingLecture(lecture);
-    setFormData(lecture);
+    // Parse time from "HH:MM-HH:MM" format back to startTime and endTime
+    const [startTime = "", endTime = ""] = lecture.time.split("-");
+    setFormData({
+      day: lecture.day,
+      startTime: startTime,
+      endTime: endTime,
+      subject: lecture.subject,
+      instructor: lecture.instructor || "",
+      location: lecture.location || "",
+    });
     setDialogOpen(true);
   };
 
   const openNewDialog = () => {
     setEditingLecture(null);
-    setFormData({ day: "Monday", time: "", subject: "", instructor: "", location: "" });
+    setFormData({ day: "Monday", startTime: "", endTime: "", subject: "", instructor: "", location: "" });
     setDialogOpen(true);
   };
 
@@ -196,15 +218,27 @@ export default function Timetable() {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time (e.g., 09:00)</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startTime">Start Time</Label>
+                    <Input
+                      id="startTime"
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endTime">End Time</Label>
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject *</Label>
@@ -262,7 +296,9 @@ export default function Timetable() {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs font-medium text-muted-foreground">{lecture.time}</span>
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {lecture.time.includes("-") ? lecture.time : `${lecture.time}-`}
+                            </span>
                           </div>
                           <div className="font-semibold text-sm">{lecture.subject}</div>
                           {lecture.instructor && (
