@@ -45,33 +45,76 @@ export default function Timetable() {
         .eq("user_id", user.id)
         .order("day", { ascending: true })
         .order("time", { ascending: true });
-      if (error) throw error;
+      if (error) {
+        console.error("Error loading lectures:", error);
+        if (error.code === '42P01' || error.message?.includes('timetable_lectures') || error.message?.includes('schema cache')) {
+          // Table doesn't exist - silently fail, user will see error when trying to add
+          setLectures([]);
+          return;
+        }
+        throw error;
+      }
       setLectures(data || []);
     } catch (e: any) {
       console.error("Error loading lectures:", e);
+      setLectures([]);
     }
   };
 
   const saveLecture = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !formData.time || !formData.subject) {
-        toast.error("Please fill in time and subject");
+      if (!user) {
+        toast.error("Please log in to add lectures");
         return;
       }
+      if (!formData.time || !formData.subject || !formData.day) {
+        toast.error("Please fill in day, time, and subject");
+        return;
+      }
+      
+      const lectureData = {
+        user_id: user.id,
+        day: formData.day,
+        time: formData.time,
+        subject: formData.subject.trim(),
+        instructor: formData.instructor?.trim() || null,
+        location: formData.location?.trim() || null,
+      };
+
       if (editingLecture?.id) {
         const { error } = await supabase
           .from("timetable_lectures")
-          .update({ ...formData })
+          .update(lectureData)
           .eq("id", editingLecture.id)
           .eq("user_id", user.id);
-        if (error) throw error;
+        if (error) {
+          console.error("Update error:", error);
+          if (error.code === '42P01' || error.message?.includes('timetable_lectures') || error.message?.includes('schema cache')) {
+            toast.error("Timetable table not found. Please run migrations: npm run db:push", {
+              duration: 5000,
+            });
+          } else {
+            throw error;
+          }
+          return;
+        }
         toast.success("Lecture updated");
       } else {
         const { error } = await supabase
           .from("timetable_lectures")
-          .insert({ ...formData, user_id: user.id });
-        if (error) throw error;
+          .insert(lectureData);
+        if (error) {
+          console.error("Insert error:", error);
+          if (error.code === '42P01' || error.message?.includes('timetable_lectures') || error.message?.includes('schema cache')) {
+            toast.error("Timetable table not found. Please run migrations: npm run db:push", {
+              duration: 5000,
+            });
+          } else {
+            throw error;
+          }
+          return;
+        }
         toast.success("Lecture added");
       }
       setDialogOpen(false);
@@ -79,6 +122,7 @@ export default function Timetable() {
       setFormData({ day: "Monday", time: "", subject: "", instructor: "", location: "" });
       await loadLectures();
     } catch (e: any) {
+      console.error("Save lecture error:", e);
       toast.error("Failed to save lecture: " + (e.message || "Unknown error"));
     }
   };
