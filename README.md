@@ -60,34 +60,60 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## Database setup (Supabase)
+## Supabase Setup (Required)
 
-This app ships with migrations for Rooms, Groups, Followers, Chat, Polls, Notes, and Recaps.
+### Step 1: Create a Supabase Project
 
-Apply them to your Supabase project using the Supabase CLI:
+1. Go to [https://supabase.com](https://supabase.com) and sign up/login
+2. Click **"New Project"**
+3. Fill in project details and create the project
+4. Wait for the project to be ready (takes 1-2 minutes)
+
+### Step 2: Get Your Project Credentials
+
+1. In your Supabase dashboard, go to **Settings** → **API**
+2. Copy:
+   - **Project URL** (looks like: `https://xxxxx.supabase.co`)
+   - **anon public** key (under "Project API keys")
+
+### Step 3: Create `.env` File
+
+Create a `.env` file in the project root:
 
 ```bash
-# Requires supabase CLI configured (SUPABASE_ACCESS_TOKEN)
-npm run db:push
+VITE_SUPABASE_URL=your-project-url-here
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
 
-If your local DB gets out of sync, reset then push:
+Replace with your actual values from Step 2.
+
+### Step 4: Run Database Migrations
+
+Open Supabase **SQL Editor** and run these migration files **in order**:
+
+1. `supabase/migrations/20251105073237_8b0876bf-ded0-44b0-975b-35dd3cf3910d.sql`
+2. `supabase/migrations/20251105073246_423d895d-5d96-4ff9-b8b9-62bab42164c6.sql`
+3. `supabase/migrations/20251106000000_add_follows_table.sql`
+4. `supabase/migrations/20251106001000_add_coffee_url_to_profiles.sql`
+5. `supabase/migrations/20251106003000_groups_members_messages.sql`
+6. `supabase/migrations/20251106012000_group_realtime_artifacts.sql`
+7. `supabase/migrations/20251106020000_timetable_lectures.sql`
+
+### Step 5: Create Storage Bucket (for profile pictures)
+
+1. In Supabase dashboard → **Storage**
+2. Click **"New bucket"**
+3. Name: `avatars`
+4. Make it **Public**
+5. Click **Create**
+
+### Step 6: Restart Dev Server
 
 ```bash
-npm run db:reset
-npm run db:push
+npm run dev
 ```
 
-Alternatively, open Supabase SQL Editor and run these files in order:
-
-- supabase/migrations/20251105073237_8b0876bf-ded0-44b0-975b-35dd3cf3910d.sql
-- supabase/migrations/20251105073246_423d895d-5d96-4ff9-b8b9-62bab42164c6.sql
-- supabase/migrations/20251106000000_add_follows_table.sql
-- supabase/migrations/20251106001000_add_coffee_url_to_profiles.sql
-- supabase/migrations/20251106003000_groups_members_messages.sql
-- supabase/migrations/20251106012000_group_realtime_artifacts.sql
-
-After applying migrations, restart the app and try creating a poll again.
+**See `SUPABASE_SETUP.md` for detailed step-by-step instructions.**
 
 ## How can I deploy this project?
 
