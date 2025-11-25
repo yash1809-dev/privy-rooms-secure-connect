@@ -171,6 +171,7 @@ export default function Group() {
       setPollOptions(["", ""]);
       setAllowMultipleVotes(false);
       setPollDialogOpen(false);
+      setAttachmentMenuOpen(false); // Close the plus menu
       await loadMessages();
       toast.success("Poll created!");
     } catch (error: any) {
