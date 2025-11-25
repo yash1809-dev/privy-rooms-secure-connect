@@ -266,30 +266,29 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {groups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold">{group.name}</h4>
-                          {group.is_password_protected && (
-                            <Badge variant="secondary" className="text-xs">
-                              Protected
-                            </Badge>
-                          )}
-                          <RoomThemeBadge theme={theme} />
-                          <RoomMoodBadge mood={mood} />
-                        </div>
-                        {group.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {group.description}
-                          </p>
+                  {groups.map((group) => <div
+                    key={group.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/group/${group.id}`)}
+                  >                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold">{group.name}</h4>
+                        {group.is_password_protected && (
+                          <Badge variant="secondary" className="text-xs">
+                            Protected
+                          </Badge>
                         )}
+                        <RoomThemeBadge theme={theme} />
+                        <RoomMoodBadge mood={mood} />
                       </div>
-                      <ShareLinkButton id={group.id} type="group" name={group.name} />
+                      {group.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {group.description}
+                        </p>
+                      )}
                     </div>
+                    <ShareLinkButton id={group.id} type="group" name={group.name} />
+                  </div>
                   ))}
                 </div>
               </CardContent>
