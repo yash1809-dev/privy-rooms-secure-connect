@@ -36,6 +36,7 @@ export default function Group() {
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [allowMultipleVotes, setAllowMultipleVotes] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -143,19 +144,21 @@ export default function Group() {
         return;
       }
 
-      // Create poll data structure
+      // Create poll data structure with voter tracking
       const pollData = {
         question: pollQuestion.trim(),
-        options: pollOptions.filter(o => o.trim()).map(opt => ({ text: opt, votes: 0 })),
+        options: pollOptions.filter(o => o.trim()).map(opt => ({ text: opt, votes: 0, voters: [] })),
         created_by: user.id,
+        allow_multiple_votes: allowMultipleVotes,
+        voted_users: [], // Track which users have voted
       };
 
       // Send poll as a chat message
       const { error: messageError } = await supabase.from("group_messages").insert({
         group_id: id,
         sender_id: user.id,
-        content: `📊 Poll: ${pollQuestion.trim()}`,
-        poll_data: pollData, // Store poll data in message
+        content: `📊 Poll: ${pollQuestion.trim()}${allowMultipleVotes ? ' (Multiple votes allowed)' : ''}`,
+        poll_data: pollData,
       });
 
       if (messageError) {
@@ -166,6 +169,7 @@ export default function Group() {
       // Clear poll form
       setPollQuestion("");
       setPollOptions(["", ""]);
+      setAllowMultipleVotes(false);
       setPollDialogOpen(false);
       await loadMessages();
       toast.success("Poll created!");
@@ -515,10 +519,44 @@ export default function Group() {
                                         onClick={async () => {
                                           // Handle vote
                                           try {
+                                            const { data: { user } } = await supabase.auth.getUser();
+                                            if (!user) {
+                                              toast.error('Please login to vote');
+                                              return;
+                                            }
+
                                             const newPollData = { ...m.poll_data };
-                                            newPollData.options = newPollData.options.map((opt: any, i: number) =>
-                                              i === idx ? { ...opt, votes: (opt.votes || 0) + 1 } : opt
-                                            );
+                                            const allowMultiple = newPollData.allow_multiple_votes;
+                                            const votedUsers = newPollData.voted_users || [];
+
+                                            // Check if user has already voted (if multiple votes not allowed)
+                                            if (!allowMultiple && votedUsers.includes(user.id)) {
+                                              toast.error('You have already voted on this poll');
+                                              return;
+                                            }
+
+                                            // Update the selected option
+                                            newPollData.options = newPollData.options.map((opt: any, i: number) => {
+                                              if (i === idx) {
+                                                const voters = opt.voters || [];
+                                                // Check if user already voted for this option
+                                                if (voters.includes(user.id)) {
+                                                  toast.error('You already voted for this option');
+                                                  return opt;
+                                                }
+                                                return {
+                                                  ...opt,
+                                                  votes: (opt.votes || 0) + 1,
+                                                  voters: [...voters, user.id]
+                                                };
+                                              }
+                                              return opt;
+                                            });
+
+                                            // Add user to voted_users list if not allowing multiple votes
+                                            if (!allowMultiple && !votedUsers.includes(user.id)) {
+                                              newPollData.voted_users = [...votedUsers, user.id];
+                                            }
 
                                             await supabase
                                               .from('group_messages')
@@ -774,6 +812,18 @@ export default function Group() {
                                   >
                                     Add Option
                                   </Button>
+                                </div>
+                                <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                                  <input
+                                    type="checkbox"
+                                    id="allow-multiple-votes"
+                                    checked={allowMultipleVotes}
+                                    onChange={(e) => setAllowMultipleVotes(e.target.checked)}
+                                    className="h4 w-4 rounded border-gray-300"
+                                  />
+                                  <Label htmlFor="allow-multiple-votes" className="cursor-pointer flex-1">
+                                    Allow multiple votes per user
+                                  </Label>
                                 </div>
                                 <Button onClick={createPoll} className="w-full">Create Poll</Button>
                               </div>
