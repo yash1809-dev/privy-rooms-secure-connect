@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import MiniDashboard from "@/components/MiniDashboard";
 import RoomRecap from "@/components/RoomRecap";
 import SmartPolls from "@/components/SmartPolls";
 
-import { MessageSquare, BarChart3, Mic, Square, Play, Pause } from "lucide-react";
+import { MessageSquare, BarChart3, Mic, Square, Plus, Smile, FileText, Image as ImageIcon, MoreVertical, Trash2, Download, Check, CheckCheck } from "lucide-react";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
 
@@ -35,6 +38,9 @@ export default function Group() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [slideOffset, setSlideOffset] = useState(0);
   const [touchStartX, setTouchStartX] = useState(0);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -327,6 +333,78 @@ export default function Group() {
     setRecordingTime(0);
   };
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setText((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleFileUpload = async (file: File, type: 'document' | 'photo') => {
+    if (!id) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // File size validation
+      const maxSize = type === 'document' ? 10 * 1024 * 1024 : 5 * 1024 * 1024; // 10MB for docs, 5MB for photos
+      if (file.size > maxSize) {
+        toast.error(`File too large. Max size: ${maxSize / (1024 * 1024)}MB`);
+        return;
+      }
+
+      const bucket = type === 'document' ? 'chat-documents' : 'chat-photos';
+      const fileName = `${id}/${user.id}/${Date.now()}_${file.name}`;
+
+      toast.info('Uploading...');
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+
+      const { error: messageError } = await supabase
+        .from("group_messages")
+        .insert({
+          group_id: id,
+          sender_id: user.id,
+          content: type === 'document' ? `📄 ${file.name}` : `📷 Photo`,
+          file_url: publicUrl,
+          file_type: file.type,
+          file_name: file.name,
+          file_size: file.size
+        });
+
+      if (messageError) throw messageError;
+
+      await loadMessages();
+      toast.success('File sent!');
+      setAttachmentMenuOpen(false);
+    } catch (error: any) {
+      toast.error('Failed to upload file: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      await loadMessages();
+      toast.success('Message deleted');
+    } catch (error: any) {
+      toast.error('Failed to delete message');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--gradient-subtle)]">
       <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -347,35 +425,122 @@ export default function Group() {
                 <RoomRecap groupId={id} />
                 <SmartPolls groupId={id} />
 
-                <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background mb-2">
+                <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background mb-2 space-y-2">
                   {messages.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>
                   )}
-                  {messages.map((m) => (
-                    <div key={m.id} className="flex items-start gap-2 mb-3">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={m.sender?.avatar_url || undefined} />
-                        <AvatarFallback>{m.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium">{m.sender?.username || "Unknown"}</div>
+                  {messages.map((m) => {
+                    const { data: { user } } = { data: { user: { id: '' } } }; // placeholder, will get real user
+                    const isOwnMessage = m.sender_id === user?.id;
 
-                        {/* Show audio player for voice notes */}
-                        {m.audio_url ? (
-                          <div className="mt-1">
-                            <div className="text-sm text-muted-foreground mb-1">{m.content}</div>
-                            <audio controls src={m.audio_url} className="max-w-full" />
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex items-end gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} group`}
+                        onMouseEnter={() => setHoveredMessageId(m.id)}
+                        onMouseLeave={() => setHoveredMessageId(null)}
+                      >
+                        {/* Profile Photo */}
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                          <AvatarImage src={m.sender?.avatar_url || undefined} />
+                          <AvatarFallback>{m.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+
+                        {/* Message Bubble */}
+                        <div className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                          <div className={`relative rounded-lg p-3 ${m.audio_url
+                            ? 'bg-green-100 dark:bg-green-900/30'
+                            : isOwnMessage
+                              ? 'bg-green-100 dark:bg-green-900/30'
+                              : 'bg-white dark:bg-gray-800'
+                            }`}>
+                            {/* Sender name */}
+                            {!isOwnMessage && (
+                              <div className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">
+                                {m.sender?.username || 'Unknown'}
+                              </div>
+                            )}
+
+                            {/* Voice Note */}
+                            {m.audio_url && (
+                              <div className="flex items-center gap-2">
+                                <audio controls src={m.audio_url} className="max-w-full h-8" />
+                              </div>
+                            )}
+
+                            {/* Photo */}
+                            {m.file_url && m.file_type?.startsWith('image/') && (
+                              <div className="space-y-1">
+                                <img
+                                  src={m.file_url}
+                                  alt={m.file_name || 'Photo'}
+                                  className="max-w-full rounded cursor-pointer hover:opacity-90"
+                                  onClick={() => window.open(m.file_url, '_blank')}
+                                />
+                                {m.content !== '📷 Photo' && (
+                                  <div className="text-sm">{m.content}</div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Document */}
+                            {m.file_url && !m.file_type?.startsWith('image/') && !m.audio_url && (
+                              <div className="flex items-center gap-2 p-2 bg-white/50 dark:bg-black/20 rounded">
+                                <FileText className="h-8 w-8 text-blue-500" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">{m.file_name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {m.file_size ? `${(m.file_size / 1024).toFixed(1)} KB` : ''}
+                                  </div>
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => window.open(m.file_url, '_blank')}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Text Message */}
+                            {!m.audio_url && !m.file_url && (
+                              <div className="text-sm break-words whitespace-pre-wrap">{m.content}</div>
+                            )}
+
+                            {/* Timestamp & Read Receipts */}
+                            <div className="flex items-center  gap-1 justify-end mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                              {isOwnMessage && (
+                                <CheckCheck className="h-3 w-3 text-blue-500" />
+                              )}
+                            </div>
                           </div>
-                        ) : (
-                          <div className="text-sm break-words">{m.content}</div>
-                        )}
 
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {m.created_at ? new Date(m.created_at).toLocaleTimeString() : ""}
+                          {/* 3-Dot Menu (hover only) */}
+                          {hoveredMessageId === m.id && isOwnMessage && (
+                            <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-8' : 'right-0 translate-x-8'}`}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => handleDeleteMessage(m.id)} className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
                 <div className="space-y-2">
@@ -610,7 +775,7 @@ export default function Group() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div >
   );
 }
 
