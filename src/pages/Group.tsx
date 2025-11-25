@@ -822,7 +822,7 @@ export default function Group() {
                                     className="h4 w-4 rounded border-gray-300"
                                   />
                                   <Label htmlFor="allow-multiple-votes" className="cursor-pointer flex-1">
-                                    Allow multiple votes per user
+                                    Allow multiple answer
                                   </Label>
                                 </div>
                                 <Button onClick={createPoll} className="w-full">Create Poll</Button>
