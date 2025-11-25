@@ -430,8 +430,7 @@ export default function Group() {
                     <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>
                   )}
                   {messages.map((m) => {
-                    const { data: { user } } = { data: { user: { id: '' } } }; // placeholder, will get real user
-                    const isOwnMessage = m.sender_id === user?.id;
+                    const isOwnMessage = me && m.sender_id === me.id;
 
                     return (
                       <div
@@ -630,8 +629,102 @@ export default function Group() {
                   )}
 
                   {/* Message input - WhatsApp style */}
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1 flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {/* Plus Icon Menu for Attachments */}
+                    <Popover open={attachmentMenuOpen} onOpenChange={setAttachmentMenuOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 flex-shrink-0">
+                          <Plus className="h-5 w-5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2">
+                        <div className="space-y-1">
+                          <label className="cursor-pointer">
+                            <div className="flex items-center gap-3 p-2 rounded hover:bg-accent">
+                              <FileText className="h-5 w-5 text-blue-500" />
+                              <span>Document</span>
+                            </div>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.doc,.docx,.txt"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(file, 'document');
+                              }}
+                            />
+                          </label>
+
+                          <label className="cursor-pointer">
+                            <div className="flex items-center gap-3 p-2 rounded hover:bg-accent">
+                              <ImageIcon className="h-5 w-5 text-purple-500" />
+                              <span>Photos</span>
+                            </div>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(file, 'photo');
+                              }}
+                            />
+                          </label>
+
+                          <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
+                            <DialogTrigger asChild>
+                              <div className="flex items-center gap-3 p-2 rounded hover:bg-accent cursor-pointer">
+                                <BarChart3 className="h-5 w-5 text-green-500" />
+                                <span>Poll</span>
+                              </div>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Create Poll</DialogTitle>
+                                <DialogDescription>Create a poll for the group to vote on</DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="poll-question">Question</Label>
+                                  <Input
+                                    id="poll-question"
+                                    placeholder="What should we do?"
+                                    value={pollQuestion}
+                                    onChange={(e) => setPollQuestion(e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Options (at least 2)</Label>
+                                  {pollOptions.map((opt, idx) => (
+                                    <Input
+                                      key={idx}
+                                      placeholder={`Option ${idx + 1}`}
+                                      value={opt}
+                                      onChange={(e) => {
+                                        const newOpts = [...pollOptions];
+                                        newOpts[idx] = e.target.value;
+                                        setPollOptions(newOpts);
+                                      }}
+                                    />
+                                  ))}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPollOptions([...pollOptions, ""])}
+                                  >
+                                    Add Option
+                                  </Button>
+                                </div>
+                                <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Text Input */}
+                    <div className="flex-1 relative">
                       <Input
                         placeholder="Type a message"
                         value={text}
@@ -642,84 +735,48 @@ export default function Group() {
                             send();
                           }
                         }}
-                        className="flex-1 rounded-full"
+                        className="flex-1 rounded-full pr-12"
                         disabled={isRecording || !!audioBlob}
                       />
 
-                      {/* Voice note button - WhatsApp style */}
-                      {!text.trim() && !audioBlob && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={isRecording ? stopRecording : startRecording}
-                          title={isRecording ? "Stop recording" : "Record voice note"}
-                          className={`rounded-full h-10 w-10 ${isRecording ? "bg-red-500 text-white hover:bg-red-600" : "hover:bg-accent"}`}
-                        >
-                          {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
-                        </Button>
-                      )}
-
-                      {/* Poll button */}
-                      <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" title="Create Poll">
-                            <BarChart3 className="h-5 w-5" />
+                      {/* Emoji Picker Button */}
+                      <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
+                          >
+                            <Smile className="h-4 w-4" />
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Create Poll</DialogTitle>
-                            <DialogDescription>Create a poll for the group to vote on</DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="poll-question">Question</Label>
-                              <Input
-                                id="poll-question"
-                                placeholder="What should we do?"
-                                value={pollQuestion}
-                                onChange={(e) => setPollQuestion(e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Options (at least 2)</Label>
-                              {pollOptions.map((opt, idx) => (
-                                <Input
-                                  key={idx}
-                                  placeholder={`Option ${idx + 1}`}
-                                  value={opt}
-                                  onChange={(e) => {
-                                    const newOpts = [...pollOptions];
-                                    newOpts[idx] = e.target.value;
-                                    setPollOptions(newOpts);
-                                  }}
-                                />
-                              ))}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPollOptions([...pollOptions, ""])}
-                              >
-                                Add Option
-                              </Button>
-                            </div>
-                            <Button onClick={createPoll} className="w-full">Create Poll</Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0 border-0" align="end">
+                          <EmojiPicker onEmojiClick={handleEmojiClick} width={350} height={400} />
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
-                    {/* Send button - WhatsApp style green button */}
-                    {(text.trim() || audioBlob) && (
+                    {/* Voice Note or Send Button */}
+                    {text.trim() || audioBlob ? (
                       <Button
                         onClick={send}
                         disabled={isRecording}
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-full h-10 w-10 p-0"
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-full h-10 w-10 p-0 flex-shrink-0"
                         size="icon"
                       >
                         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                         </svg>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        title={isRecording ? "Stop recording" : "Record voice note"}
+                        className={`rounded-full h-10 w-10 flex-shrink-0 ${isRecording ? "bg-red-500 text-white hover:bg-red-600" : "hover:bg-accent"}`}
+                      >
+                        {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
                       </Button>
                     )}
                   </div>
