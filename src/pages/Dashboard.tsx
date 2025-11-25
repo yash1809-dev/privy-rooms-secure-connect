@@ -16,6 +16,7 @@ import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import RoomThemeSelector, { RoomThemeBadge, ThemeKey } from "@/components/RoomThemeSelector";
 import RoomStatusMood, { RoomMoodBadge, MoodKey } from "@/components/RoomStatusMood";
+import { RecordingsCalendar } from "@/components/RecordingsCalendar";
 
 interface Profile {
   username: string;
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<ThemeKey>("default");
   const [mood, setMood] = useState<MoodKey>("studying");
+  const [selectedRecordingDate, setSelectedRecordingDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     loadProfile();
@@ -57,7 +59,7 @@ export default function Dashboard() {
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate("/login");
         return;
@@ -125,9 +127,13 @@ export default function Dashboard() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">PrivyRooms</h1>
-          
+
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <RecordingsCalendar
+              selectedDate={selectedRecordingDate}
+              onDateSelect={setSelectedRecordingDate}
+            />
             <Avatar>
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback>{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
@@ -154,7 +160,7 @@ export default function Dashboard() {
           <Timetable />
 
           {/* Voice Notes to Text */}
-          <VoiceNotesToText />
+          <VoiceNotesToText selectedDate={selectedRecordingDate} />
 
           {/* Room theme + mood controls */}
           <Card className="mb-8">

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { format } from "date-fns";
-import { Mic, Square } from "lucide-react";
+import { format, startOfDay, endOfDay, isToday } from "date-fns";
+import { Mic, Square, ArrowUp } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type VoiceRecording = {
   id: string;
@@ -18,7 +20,7 @@ type VoiceRecording = {
   showTranscript: boolean;
 };
 
-export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
+export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: string; selectedDate?: Date }) {
   const [headingInput, setHeadingInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [supported, setSupported] = useState(true);
@@ -27,6 +29,9 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [recordings, setRecordings] = useState<VoiceRecording[]>([]);
   const [activeDay, setActiveDay] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const interimRef = useRef("");
@@ -36,7 +41,14 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
   const currentStreamRef = useRef<MediaStream | null>(null);
   const recordingRef = useRef(false);
   const recordingsRef = useRef<VoiceRecording[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Load recordings from database based on selectedDate
+  useEffect(() => {
+    loadRecordings();
+  }, [selectedDate]);
+
+  // Initialize speech recognition
   useEffect(() => {
     const RecognitionConstructor =
       (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -57,7 +69,7 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
           const text = result[0].transcript;
           if (result.isFinal) {
             transcriptRef.current = transcriptRef.current
-              ? `${transcriptRef.current}\n${text}`
+              ? `${transcriptRef.current}\\n${text}`
               : text;
             interimRef.current = "";
           } else {
@@ -65,9 +77,8 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
           }
         }
 
-        const combined = `${transcriptRef.current}${
-          interimRef.current ? `\n${interimRef.current}` : ""
-        }`;
+        const combined = `${transcriptRef.current}${interimRef.current ? `\\n${interimRef.current}` : ""
+          }`;
         setLiveTranscript(combined.trim());
       };
 
@@ -102,6 +113,50 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
     recordingsRef.current = recordings;
   }, [recordings]);
 
+  const loadRecordings = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine date range to query
+      const targetDate = selectedDate || new Date();
+      const start = startOfDay(targetDate);
+      const end = endOfDay(targetDate);
+
+      // Query database for recordings in date range
+      const { data, error } = await supabase
+        .from("voice_recordings" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("recorded_at", start.toISOString())
+        .lte("recorded_at", end.toISOString())
+        .order("recorded_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load recordings:", error);
+        toast.error("Failed to load recordings");
+        return;
+      }
+
+      // Transform database records to VoiceRecording type
+      const loadedRecordings: VoiceRecording[] = (data || []).map((record: any) => ({
+        id: record.id,
+        heading: record.heading,
+        createdAt: new Date(record.recorded_at),
+        audioUrl: record.audio_url,
+        transcript: record.transcript || "",
+        showTranscript: false,
+      }));
+
+      setRecordings(loadedRecordings);
+    } catch (error) {
+      console.error("Error loading recordings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const groupedRecordings = useMemo(() => {
     const groups = recordings.reduce<Record<string, VoiceRecording[]>>((acc, note) => {
       const dayKey = format(note.createdAt, "yyyy-MM-dd");
@@ -124,56 +179,112 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
     }
   }, [activeDay, groupedRecordings]);
 
+  const uploadAudioToStorage = async (audioBlob: Blob, userId: string, timestamp: number): Promise<string | null> => {
+    try {
+      const fileName = `${userId}/${timestamp}.webm`;
+      const { data, error } = await supabase.storage
+        .from("voice-recordings")
+        .upload(fileName, audioBlob, {
+          contentType: "audio/webm",
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from("voice-recordings")
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Failed to upload audio:", error);
+      return null;
+    }
+  };
+
   const finalizeRecording = async () => {
     if (!audioChunksRef.current.length) {
       setStatus("No audio captured");
       return;
     }
 
+    setUploading(true);
     const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-    const audioUrl = URL.createObjectURL(audioBlob);
     const capturedAt = new Date();
-    const dayKey = format(capturedAt, "yyyy-MM-dd");
     const heading = headingInput.trim() || "Voice note";
     const transcript = transcriptRef.current.trim();
 
-    const newRecording: VoiceRecording = {
-      id: crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
-      heading,
-      createdAt: capturedAt,
-      audioUrl,
-      transcript,
-      showTranscript: false,
-    };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to save recordings");
+        return;
+      }
 
-    mediaRecorderRef.current = null;
-    audioChunksRef.current = [];
-    transcriptRef.current = "";
-    interimRef.current = "";
-    setLiveTranscript("");
-    setHeadingInput("");
-    setRecording(false);
-    recordingRef.current = false;
+      // Upload audio to Supabase Storage
+      const audioUrl = await uploadAudioToStorage(audioBlob, user.id, capturedAt.getTime());
 
-    setRecordings((prev) => [newRecording, ...prev]);
-    setActiveDay(dayKey);
-    setStatus("Saved voice note");
+      if (!audioUrl) {
+        toast.error("Failed to upload audio file");
+        return;
+      }
 
-    if (groupId && transcript) {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
+      // Save metadata to database
+      const { data: dbRecord, error: dbError } = await supabase
+        .from("voice_recordings" as any)
+        .insert({
+          user_id: user.id,
+          group_id: groupId || null,
+          heading,
+          transcript,
+          audio_url: audioUrl,
+          recorded_at: capturedAt.toISOString(),
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Add to local state
+      const newRecording: VoiceRecording = {
+        id: dbRecord.id,
+        heading,
+        createdAt: capturedAt,
+        audioUrl,
+        transcript,
+        showTranscript: false,
+      };
+
+      setRecordings((prev) => [newRecording, ...prev]);
+      setStatus("Saved voice note");
+      toast.success("Recording saved successfully");
+
+      // Sync transcript to group_notes if in a group
+      if (groupId && transcript) {
+        try {
           await supabase.from("group_notes").insert({
             group_id: groupId,
             author_id: user.id,
             content: transcript,
           });
+        } catch {
+          toast.warning("Saved locally but failed to sync with the group");
         }
-      } catch {
-        setStatus("Saved locally but failed to sync with the group");
       }
+    } catch (error) {
+      console.error("Failed to save recording:", error);
+      toast.error("Failed to save recording");
+    } finally {
+      setUploading(false);
+      mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
+      transcriptRef.current = "";
+      interimRef.current = "";
+      setLiveTranscript("");
+      setHeadingInput("");
+      setRecording(false);
+      recordingRef.current = false;
     }
   };
 
@@ -262,141 +373,182 @@ export default function VoiceNotesToText({ groupId }: { groupId?: string }) {
     );
   };
 
+  const scrollToTop = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    setShowScrollTop(scrollTop > 200);
+  };
+
+  // Show different title and description based on selected date
+  const isViewingToday = !selectedDate || isToday(selectedDate);
+  const dateLabel = selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Today";
+
   return (
     <Card className="mb-8">
       <CardHeader>
         <CardTitle>Voice Notes → Text</CardTitle>
         <CardDescription>
-          Capture audio with a heading, then group recordings by day and transcribe on demand.
+          {isViewingToday
+            ? "Capture audio with a heading, then group recordings by day and transcribe on demand."
+            : `Viewing recordings from ${dateLabel}`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="voice-note-heading">Recording heading</Label>
-          <Input
-            id="voice-note-heading"
-            placeholder="e.g. Weekly sync prep"
-            value={headingInput}
-            onChange={(event) => setHeadingInput(event.target.value)}
-            disabled={recording}
-          />
-          <p className="text-xs text-muted-foreground">
-            The exact time and date are saved automatically with every note.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button size="sm" onClick={toggleRecording} disabled={!mediaSupported}>
-            {recording ? (
-              <>
-                <Square className="mr-2 h-4 w-4" />
-                Stop recording
-              </>
-            ) : (
-              <>
-                <Mic className="mr-2 h-4 w-4" />
-                Start recording
-              </>
-            )}
-          </Button>
-          {status && <div className="text-xs text-muted-foreground">{status}</div>}
-        </div>
-
-        <div className="rounded border bg-background p-3 text-sm text-muted-foreground min-h-24">
-          {recording ? (
+        {isViewingToday && (
+          <>
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Live transcript</p>
-              <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-foreground">
-                {liveTranscript || "Listening…"}
-              </div>
+              <Label htmlFor="voice-note-heading">Recording heading</Label>
+              <Input
+                id="voice-note-heading"
+                placeholder="e.g. Weekly sync prep"
+                value={headingInput}
+                onChange={(event) => setHeadingInput(event.target.value)}
+                disabled={recording || uploading}
+              />
+              <p className="text-xs text-muted-foreground">
+                The exact time and date are saved automatically with every note.
+              </p>
             </div>
-          ) : (
-            <p>Set a heading, start recording, and your note will be saved with today’s date.</p>
-          )}
-        </div>
 
-        {!supported && (
-          <div className="text-xs text-muted-foreground">
-            Transcription requires a browser that supports the Web Speech API (Chrome or Edge).
-          </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button size="sm" onClick={toggleRecording} disabled={!mediaSupported || uploading}>
+                {recording ? (
+                  <>
+                    <Square className="mr-2 h-4 w-4" />
+                    Stop recording
+                  </>
+                ) : (
+                  <>
+                    <Mic className="mr-2 h-4 w-4" />
+                    Start recording
+                  </>
+                )}
+              </Button>
+              {status && <div className="text-xs text-muted-foreground">{status}</div>}
+              {uploading && <div className="text-xs text-primary">Uploading...</div>}
+            </div>
+
+            <div className="rounded border bg-background p-3 text-sm text-muted-foreground min-h-24">
+              {recording ? (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Live transcript</p>
+                  <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-foreground">
+                    {liveTranscript || "Listening…"}
+                  </div>
+                </div>
+              ) : (
+                <p>Set a heading, start recording, and your note will be saved with today's date.</p>
+              )}
+            </div>
+
+            {!supported && (
+              <div className="text-xs text-muted-foreground">
+                Transcription requires a browser that supports the Web Speech API (Chrome or Edge).
+              </div>
+            )}
+
+            {!mediaSupported && (
+              <div className="text-xs text-muted-foreground">
+                This browser does not support in-app audio recording. Please switch to a modern desktop
+                browser.
+              </div>
+            )}
+          </>
         )}
 
-        {!mediaSupported && (
-          <div className="text-xs text-muted-foreground">
-            This browser does not support in-app audio recording. Please switch to a modern desktop
-            browser.
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-sm text-muted-foreground mt-2">Loading recordings...</p>
           </div>
-        )}
-
-        {groupedRecordings.length ? (
-          <div className="space-y-3">
+        ) : groupedRecordings.length ? (
+          <div className="space-y-3 relative">
             <p className="text-sm font-medium text-foreground">Recordings by day</p>
-            <Accordion
-              type="single"
-              collapsible
-              value={activeDay ?? ""}
-              onValueChange={(value) => setActiveDay(value || undefined)}
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="max-h-[600px] overflow-y-auto relative"
             >
-              {groupedRecordings.map((group) => (
-                <AccordionItem key={group.dayKey} value={group.dayKey}>
-                  <AccordionTrigger className="flex-col items-start gap-1">
-                    <div className="flex w-full items-center justify-between">
-                      <span className="font-semibold">{group.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {group.notes.length} {group.notes.length === 1 ? "recording" : "recordings"}
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      {group.notes.map((note) => (
-                        <div key={note.id} className="rounded border p-3">
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="font-medium text-foreground">{note.heading}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(note.createdAt, "p '•' MMM d, yyyy")}
-                              </p>
+              <Accordion
+                type="single"
+                collapsible
+                value={activeDay ?? ""}
+                onValueChange={(value) => setActiveDay(value || undefined)}
+              >
+                {groupedRecordings.map((group) => (
+                  <AccordionItem key={group.dayKey} value={group.dayKey}>
+                    <AccordionTrigger className="flex-col items-start gap-1">
+                      <div className="flex w-full items-center justify-between">
+                        <span className="font-semibold">{group.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {group.notes.length} {group.notes.length === 1 ? "recording" : "recordings"}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4">
+                        {group.notes.map((note) => (
+                          <div key={note.id} className="rounded border p-3">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="font-medium text-foreground">{note.heading}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(note.createdAt, "p '•' MMM d, yyyy")}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          <audio controls className="mt-3 w-full" src={note.audioUrl} />
-                          <div className="mt-3 flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => toggleTranscript(note.id)}
-                              disabled={!supported || !note.transcript}
-                            >
-                              {note.showTranscript ? "Hide transcript" : "Transcribe"}
-                            </Button>
-                            {!note.transcript && (
-                              <span className="text-xs text-muted-foreground">
-                                Transcript unavailable for this recording.
-                              </span>
+                            <audio controls className="mt-3 w-full" src={note.audioUrl} />
+                            <div className="mt-3 flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => toggleTranscript(note.id)}
+                                disabled={!supported || !note.transcript}
+                              >
+                                {note.showTranscript ? "Hide transcript" : "Transcribe"}
+                              </Button>
+                              {!note.transcript && (
+                                <span className="text-xs text-muted-foreground">
+                                  Transcript unavailable for this recording.
+                                </span>
+                              )}
+                            </div>
+                            {note.showTranscript && note.transcript && (
+                              <div className="mt-3 rounded bg-muted p-2 text-sm whitespace-pre-wrap">
+                                {note.transcript}
+                              </div>
                             )}
                           </div>
-                          {note.showTranscript && note.transcript && (
-                            <div className="mt-3 rounded bg-muted p-2 text-sm whitespace-pre-wrap">
-                              {note.transcript}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+            {showScrollTop && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="fixed bottom-8 right-8 rounded-full shadow-lg z-10"
+                onClick={scrollToTop}
+                title="Scroll to top"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ) : (
           <div className="rounded border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Your recordings will be grouped by day. Start by capturing your first note.
+            {isViewingToday
+              ? "Your recordings will be grouped by day. Start by capturing your first note."
+              : `No recordings on ${dateLabel}`}
           </div>
         )}
       </CardContent>
     </Card>
   );
 }
-
-
-
