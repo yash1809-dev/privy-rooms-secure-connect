@@ -142,37 +142,35 @@ export default function Group() {
         toast.error("Please provide a question and at least 2 options");
         return;
       }
-      const { error } = await supabase.from("group_polls").insert({
-        group_id: id,
+
+      // Create poll data structure
+      const pollData = {
         question: pollQuestion.trim(),
-        options: pollOptions.filter(o => o.trim()),
+        options: pollOptions.filter(o => o.trim()).map(opt => ({ text: opt, votes: 0 })),
         created_by: user.id,
+      };
+
+      // Send poll as a chat message
+      const { error: messageError } = await supabase.from("group_messages").insert({
+        group_id: id,
+        sender_id: user.id,
+        content: `📊 Poll: ${pollQuestion.trim()}`,
+        poll_data: pollData, // Store poll data in message
       });
-      if (error) {
-        // If the table wasn't created yet, guide the user
-        const msg = (error as any)?.message || "Unknown error";
-        if (msg.includes("group_polls") || msg.includes("schema cache") || (error as any)?.code === '42P01') {
-          toast.error("Polls not initialized. Please run Supabase migrations.", {
-            description: "Run: supabase db push (see README)"
-          });
-        } else {
-          toast.error("Failed to create poll: " + msg);
-        }
+
+      if (messageError) {
+        toast.error("Failed to send poll: " + messageError.message);
         return;
       }
-      setPollDialogOpen(false);
+
+      // Clear poll form
       setPollQuestion("");
       setPollOptions(["", ""]);
+      setPollDialogOpen(false);
+      await loadMessages();
       toast.success("Poll created!");
-    } catch (e: any) {
-      const msg = e?.message || "Unknown error";
-      if (msg.includes("group_polls") || msg.includes("schema cache")) {
-        toast.error("Polls not initialized. Please run Supabase migrations.", {
-          description: "Run: supabase db push (see README)"
-        });
-      } else {
-        toast.error("Failed to create poll: " + msg);
-      }
+    } catch (error: any) {
+      toast.error("Failed to create poll: " + error.message);
     }
   };
 
@@ -501,8 +499,64 @@ export default function Group() {
                               </div>
                             )}
 
+                            {/* Poll Display */}
+                            {m.poll_data && (
+                              <div className="space-y-3 min-w-[280px]">
+                                <div className="font-semibold text-sm">{m.poll_data.question}</div>
+                                <div className="space-y-2">
+                                  {m.poll_data.options?.map((option: any, idx: number) => {
+                                    const totalVotes = m.poll_data.options?.reduce((sum: number, opt: any) => sum + (opt.votes || 0), 0) || 0;
+                                    const percentage = totalVotes > 0 ? Math.round((option.votes || 0) / totalVotes * 100) : 0;
+
+                                    return (
+                                      <button
+                                        key={idx}
+                                        className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors relative overflow-hidden"
+                                        onClick={async () => {
+                                          // Handle vote
+                                          try {
+                                            const newPollData = { ...m.poll_data };
+                                            newPollData.options = newPollData.options.map((opt: any, i: number) =>
+                                              i === idx ? { ...opt, votes: (opt.votes || 0) + 1 } : opt
+                                            );
+
+                                            await supabase
+                                              .from('group_messages')
+                                              .update({ poll_data: newPollData })
+                                              .eq('id', m.id);
+
+                                            await loadMessages();
+                                            toast.success('Vote recorded!');
+                                          } catch (error) {
+                                            toast.error('Failed to vote');
+                                          }
+                                        }}
+                                      >
+                                        {/* Progress bar background */}
+                                        <div
+                                          className="absolute inset-0 bg-teal-100 dark:bg-teal-900/30 transition-all duration-300"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+
+                                        {/* Content */}
+                                        <div className="relative flex items-center justify-between">
+                                          <span className="text-sm font-medium">{option.text}</span>
+                                          <span className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+                                            {percentage}% ({option.votes || 0})
+                                          </span>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {m.poll_data.options?.reduce((sum: number, opt: any) => sum + (opt.votes || 0), 0) || 0} votes
+                                </div>
+                              </div>
+                            )}
+
                             {/* Text Message */}
-                            {!m.audio_url && !m.file_url && (
+                            {!m.audio_url && !m.file_url && !m.poll_data && (
                               <div className={`break-words whitespace-pre-wrap ${isEmojiOnly(m.content) ? 'text-4xl leading-relaxed' : 'text-sm'
                                 }`}>
                                 {m.content}
