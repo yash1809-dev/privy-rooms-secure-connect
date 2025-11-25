@@ -334,108 +334,176 @@ export default function Group() {
                   <div ref={messagesEndRef} />
                 </div>
                 <div className="space-y-2">
-                  {/* Voice note preview */}
+                  {/* Voice note preview - WhatsApp style */}
                   {audioBlob && (
-                    <div className="flex items-center gap-2 p-2 bg-accent rounded">
-                      <audio controls src={URL.createObjectURL(audioBlob)} className="flex-1" />
-                      <Button size="sm" onClick={sendVoiceNote}>Send</Button>
-                      <Button size="sm" variant="outline" onClick={cancelVoiceNote}>Cancel</Button>
-                    </div>
-                  )}
-
-                  {/* Recording indicator */}
-                  {isRecording && (
-                    <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500 rounded">
-                      <div className="flex-1 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-sm">Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                    <div className="flex items-center gap-3 p-3 bg-accent rounded-lg border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full" />
+                          <span className="text-sm font-medium">Voice message</span>
+                          <span className="text-xs text-muted-foreground">
+                            {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        <audio controls src={URL.createObjectURL(audioBlob)} className="w-full h-8" />
                       </div>
-                      <Button size="sm" variant="destructive" onClick={stopRecording}>
-                        <Square className="h-4 w-4 mr-1" />
-                        Stop
+                      <Button
+                        size="icon"
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-full h-12 w-12"
+                        onClick={sendVoiceNote}
+                      >
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={cancelVoiceNote}
+                        className="h-12 w-12"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </Button>
                     </div>
                   )}
 
-                  {/* Message input */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Type a message"
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          send();
-                        }
-                      }}
-                      className="flex-1"
-                      disabled={isRecording || !!audioBlob}
-                    />
-
-                    {/* Voice note button */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={!!audioBlob}
-                      title={isRecording ? "Stop recording" : "Record voice note"}
-                      className={isRecording ? "bg-red-500 text-white hover:bg-red-600" : ""}
-                    >
-                      {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </Button>
-
-                    <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="icon" title="Create Poll">
-                          <BarChart3 className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Create Poll</DialogTitle>
-                          <DialogDescription>Create a poll for the group to vote on</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="poll-question">Question</Label>
-                            <Input
-                              id="poll-question"
-                              placeholder="What should we do?"
-                              value={pollQuestion}
-                              onChange={(e) => setPollQuestion(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Options (at least 2)</Label>
-                            {pollOptions.map((opt, idx) => (
-                              <Input
-                                key={idx}
-                                placeholder={`Option ${idx + 1}`}
-                                value={opt}
-                                onChange={(e) => {
-                                  const newOpts = [...pollOptions];
-                                  newOpts[idx] = e.target.value;
-                                  setPollOptions(newOpts);
-                                }}
-                              />
-                            ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setPollOptions([...pollOptions, ""])}
-                            >
-                              Add Option
-                            </Button>
-                          </div>
-                          <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                  {/* Recording indicator - WhatsApp style */}
+                  {isRecording && (
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-900">
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex h-4 w-4">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
                         </div>
-                      </DialogContent>
-                    </Dialog>
-                    <Button onClick={send} disabled={!text.trim() || isRecording || !!audioBlob}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Send
-                    </Button>
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                        </span>
+                      </div>
+
+                      {/* Waveform animation */}
+                      <div className="flex-1 flex items-center justify-center gap-1 h-8">
+                        {[...Array(20)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-1 bg-red-500 rounded-full animate-pulse"
+                            style={{
+                              height: `${Math.random() * 24 + 8}px`,
+                              animationDelay: `${i * 0.05}s`,
+                              animationDuration: `${0.5 + Math.random() * 0.5}s`
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">← Slide to cancel</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-10 w-10 rounded-full bg-red-500 hover:bg-red-600 text-white"
+                          onClick={stopRecording}
+                        >
+                          <Square className="h-4 w-4 fill-current" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message input - WhatsApp style */}
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 flex gap-2">
+                      <Input
+                        placeholder="Type a message"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            send();
+                          }
+                        }}
+                        className="flex-1 rounded-full"
+                        disabled={isRecording || !!audioBlob}
+                      />
+
+                      {/* Voice note button - WhatsApp style */}
+                      {!text.trim() && !audioBlob && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={isRecording ? stopRecording : startRecording}
+                          title={isRecording ? "Stop recording" : "Record voice note"}
+                          className={`rounded-full h-10 w-10 ${isRecording ? "bg-red-500 text-white hover:bg-red-600" : "hover:bg-accent"}`}
+                        >
+                          {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                        </Button>
+                      )}
+
+                      {/* Poll button */}
+                      <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" title="Create Poll">
+                            <BarChart3 className="h-5 w-5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Create Poll</DialogTitle>
+                            <DialogDescription>Create a poll for the group to vote on</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="poll-question">Question</Label>
+                              <Input
+                                id="poll-question"
+                                placeholder="What should we do?"
+                                value={pollQuestion}
+                                onChange={(e) => setPollQuestion(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Options (at least 2)</Label>
+                              {pollOptions.map((opt, idx) => (
+                                <Input
+                                  key={idx}
+                                  placeholder={`Option ${idx + 1}`}
+                                  value={opt}
+                                  onChange={(e) => {
+                                    const newOpts = [...pollOptions];
+                                    newOpts[idx] = e.target.value;
+                                    setPollOptions(newOpts);
+                                  }}
+                                />
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPollOptions([...pollOptions, ""])}
+                              >
+                                Add Option
+                              </Button>
+                            </div>
+                            <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    {/* Send button - WhatsApp style green button */}
+                    {(text.trim() || audioBlob) && (
+                      <Button
+                        onClick={send}
+                        disabled={isRecording}
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-full h-10 w-10 p-0"
+                        size="icon"
+                      >
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </TabsContent>
