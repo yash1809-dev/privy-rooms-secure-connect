@@ -480,8 +480,8 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
               >
                 {groupedRecordings.map((group) => (
                   <AccordionItem key={group.dayKey} value={group.dayKey}>
-                    <AccordionTrigger className="flex-col items-start gap-1">
-                      <div className="flex w-full items-center justify-between">
+                    <AccordionTrigger>
+                      <div className="flex w-full items-center justify-between pr-4">
                         <span className="font-semibold">{group.label}</span>
                         <span className="text-xs text-muted-foreground">
                           {group.notes.length} {group.notes.length === 1 ? "recording" : "recordings"}
