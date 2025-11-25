@@ -12,8 +12,8 @@ import { toast } from "sonner";
 import MiniDashboard from "@/components/MiniDashboard";
 import RoomRecap from "@/components/RoomRecap";
 import SmartPolls from "@/components/SmartPolls";
-import VoiceNotesToText from "@/components/VoiceNotesToText";
-import { MessageSquare, BarChart3 } from "lucide-react";
+
+import { MessageSquare, BarChart3, Mic, Square, Play, Pause } from "lucide-react";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
 
@@ -30,6 +30,12 @@ export default function Group() {
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -187,6 +193,95 @@ export default function Group() {
     }
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      toast.error("Failed to access microphone");
+      console.error(error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+    }
+  };
+
+  const sendVoiceNote = async () => {
+    if (!audioBlob || !id) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Upload audio to storage
+      const fileName = `${user.id}/${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('voice-recordings')
+        .upload(fileName, audioBlob);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('voice-recordings')
+        .getPublicUrl(fileName);
+
+      // Send as message with audio URL
+      const { error: messageError } = await supabase
+        .from("group_messages")
+        .insert({
+          group_id: id,
+          sender_id: user.id,
+          content: `🎤 Voice message (${recordingTime}s)`,
+          audio_url: publicUrl
+        });
+
+      if (messageError) throw messageError;
+
+      setAudioBlob(null);
+      setRecordingTime(0);
+      await loadMessages();
+      toast.success("Voice note sent!");
+    } catch (error: any) {
+      toast.error("Failed to send voice note: " + (error.message || "Unknown error"));
+      console.error(error);
+    }
+  };
+
+  const cancelVoiceNote = () => {
+    setAudioBlob(null);
+    setRecordingTime(0);
+  };
+
   return (
     <div className="min-h-screen bg-[var(--gradient-subtle)]">
       <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -206,7 +301,7 @@ export default function Group() {
                 <MiniDashboard groupId={id} />
                 <RoomRecap groupId={id} />
                 <SmartPolls groupId={id} />
-                <VoiceNotesToText groupId={id} />
+
                 <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background mb-2">
                   {messages.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>
@@ -219,7 +314,17 @@ export default function Group() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium">{m.sender?.username || "Unknown"}</div>
-                        <div className="text-sm break-words">{m.content}</div>
+
+                        {/* Show audio player for voice notes */}
+                        {m.audio_url ? (
+                          <div className="mt-1">
+                            <div className="text-sm text-muted-foreground mb-1">{m.content}</div>
+                            <audio controls src={m.audio_url} className="max-w-full" />
+                          </div>
+                        ) : (
+                          <div className="text-sm break-words">{m.content}</div>
+                        )}
+
                         <div className="text-xs text-muted-foreground mt-1">
                           {m.created_at ? new Date(m.created_at).toLocaleTimeString() : ""}
                         </div>
@@ -228,70 +333,110 @@ export default function Group() {
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Type a message" 
-                    value={text} 
-                    onChange={(e) => setText(e.target.value)} 
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        send();
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon" title="Create Poll">
-                        <BarChart3 className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create Poll</DialogTitle>
-                        <DialogDescription>Create a poll for the group to vote on</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="poll-question">Question</Label>
-                          <Input
-                            id="poll-question"
-                            placeholder="What should we do?"
-                            value={pollQuestion}
-                            onChange={(e) => setPollQuestion(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Options (at least 2)</Label>
-                          {pollOptions.map((opt, idx) => (
-                            <Input
-                              key={idx}
-                              placeholder={`Option ${idx + 1}`}
-                              value={opt}
-                              onChange={(e) => {
-                                const newOpts = [...pollOptions];
-                                newOpts[idx] = e.target.value;
-                                setPollOptions(newOpts);
-                              }}
-                            />
-                          ))}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPollOptions([...pollOptions, ""])}
-                          >
-                            Add Option
-                          </Button>
-                        </div>
-                        <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                <div className="space-y-2">
+                  {/* Voice note preview */}
+                  {audioBlob && (
+                    <div className="flex items-center gap-2 p-2 bg-accent rounded">
+                      <audio controls src={URL.createObjectURL(audioBlob)} className="flex-1" />
+                      <Button size="sm" onClick={sendVoiceNote}>Send</Button>
+                      <Button size="sm" variant="outline" onClick={cancelVoiceNote}>Cancel</Button>
+                    </div>
+                  )}
+
+                  {/* Recording indicator */}
+                  {isRecording && (
+                    <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500 rounded">
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-sm">Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Button onClick={send} disabled={!text.trim()}>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Send
-                  </Button>
+                      <Button size="sm" variant="destructive" onClick={stopRecording}>
+                        <Square className="h-4 w-4 mr-1" />
+                        Stop
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Message input */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Type a message"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          send();
+                        }
+                      }}
+                      className="flex-1"
+                      disabled={isRecording || !!audioBlob}
+                    />
+
+                    {/* Voice note button */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={!!audioBlob}
+                      title={isRecording ? "Stop recording" : "Record voice note"}
+                      className={isRecording ? "bg-red-500 text-white hover:bg-red-600" : ""}
+                    >
+                      {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </Button>
+
+                    <Dialog open={pollDialogOpen} onOpenChange={setPollDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" title="Create Poll">
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Create Poll</DialogTitle>
+                          <DialogDescription>Create a poll for the group to vote on</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="poll-question">Question</Label>
+                            <Input
+                              id="poll-question"
+                              placeholder="What should we do?"
+                              value={pollQuestion}
+                              onChange={(e) => setPollQuestion(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Options (at least 2)</Label>
+                            {pollOptions.map((opt, idx) => (
+                              <Input
+                                key={idx}
+                                placeholder={`Option ${idx + 1}`}
+                                value={opt}
+                                onChange={(e) => {
+                                  const newOpts = [...pollOptions];
+                                  newOpts[idx] = e.target.value;
+                                  setPollOptions(newOpts);
+                                }}
+                              />
+                            ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPollOptions([...pollOptions, ""])}
+                            >
+                              Add Option
+                            </Button>
+                          </div>
+                          <Button onClick={createPoll} className="w-full">Create Poll</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Button onClick={send} disabled={!text.trim() || isRecording || !!audioBlob}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Send
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
               <TabsContent value="members">
