@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfDay, endOfDay, isToday } from "date-fns";
-import { Mic, Square, ArrowUp } from "lucide-react";
+import { Mic, Square, ArrowUp, MoreVertical, Trash2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -393,13 +399,26 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
       if (dbError) throw dbError;
 
       // Delete audio file from storage
-      // Extract file path from URL
-      const urlParts = audioUrl.split("/voice-recordings/");
-      if (urlParts.length > 1) {
-        const filePath = urlParts[1];
-        await supabase.storage
-          .from("voice-recordings")
-          .remove([filePath]);
+      // Extract file path from the public URL
+      try {
+        // Parse the URL to get the file path
+        const url = new URL(audioUrl);
+        const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/voice-recordings\/(.+)/);
+
+        if (pathMatch && pathMatch[1]) {
+          const filePath = decodeURIComponent(pathMatch[1]);
+          console.log("Deleting file:", filePath);
+
+          const { error: storageError } = await supabase.storage
+            .from("voice-recordings")
+            .remove([filePath]);
+
+          if (storageError) {
+            console.error("Storage delete error:", storageError);
+          }
+        }
+      } catch (urlError) {
+        console.error("Error parsing audio URL:", urlError);
       }
 
       // Remove from local state
@@ -531,12 +550,29 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                         {group.notes.map((note) => (
                           <div key={note.id} className="rounded border p-3">
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
+                              <div className="flex-1">
                                 <p className="font-medium text-foreground">{note.heading}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {format(note.createdAt, "p '•' MMM d, yyyy")}
                                 </p>
                               </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                    <span className="sr-only">More options</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => deleteRecording(note.id, note.audioUrl)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete recording
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                             <audio controls className="mt-3 w-full" src={note.audioUrl} />
                             <div className="mt-3 flex items-center gap-2">
@@ -547,13 +583,6 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                                 disabled={!supported || !note.transcript}
                               >
                                 {note.showTranscript ? "Hide transcript" : "Transcribe"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => deleteRecording(note.id, note.audioUrl)}
-                              >
-                                Delete
                               </Button>
                               {!note.transcript && (
                                 <span className="text-xs text-muted-foreground">
