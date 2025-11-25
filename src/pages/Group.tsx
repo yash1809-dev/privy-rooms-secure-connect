@@ -12,13 +12,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
-import MiniDashboard from "@/components/MiniDashboard";
-import RoomRecap from "@/components/RoomRecap";
-import SmartPolls from "@/components/SmartPolls";
 
 import { MessageSquare, BarChart3, Mic, Square, Plus, Smile, FileText, Image as ImageIcon, MoreVertical, Trash2, Download, Check, CheckCheck } from "lucide-react";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
+
+// Utility function to detect if a string contains only emojis
+const isEmojiOnly = (text: string): boolean => {
+  const emojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+(\s*)$/u;
+  return emojiRegex.test(text.trim());
+};
 
 export default function Group() {
   const { id } = useParams();
@@ -421,11 +424,7 @@ export default function Group() {
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
               <TabsContent value="chat">
-                <MiniDashboard groupId={id} />
-                <RoomRecap groupId={id} />
-                <SmartPolls groupId={id} />
-
-                <div className="h-[50vh] border rounded p-3 overflow-y-auto bg-background mb-2 space-y-2">
+                <div className="h-[70vh] border rounded p-3 overflow-y-auto bg-background mb-2 space-y-2">
                   {messages.length === 0 && (
                     <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>
                   )}
@@ -504,16 +503,23 @@ export default function Group() {
 
                             {/* Text Message */}
                             {!m.audio_url && !m.file_url && (
-                              <div className="text-sm break-words whitespace-pre-wrap">{m.content}</div>
+                              <div className={`break-words whitespace-pre-wrap ${isEmojiOnly(m.content) ? 'text-4xl leading-relaxed' : 'text-sm'
+                                }`}>
+                                {m.content}
+                              </div>
                             )}
 
                             {/* Timestamp & Read Receipts */}
-                            <div className="flex items-center  gap-1 justify-end mt-1">
+                            <div className="flex items-center gap-1 justify-end mt-1">
                               <span className="text-xs text-muted-foreground">
                                 {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
                               {isOwnMessage && (
-                                <CheckCheck className="h-3 w-3 text-blue-500" />
+                                m.is_read ? (
+                                  <CheckCheck className="h-3 w-3 text-blue-500" />
+                                ) : (
+                                  <CheckCheck className="h-3 w-3 text-gray-400" />
+                                )
                               )}
                             </div>
                           </div>

@@ -176,6 +176,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Create Section */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <Card className="hover:shadow-[var(--shadow-smooth)] transition-shadow cursor-pointer">
               <CardHeader>
