@@ -84,7 +84,7 @@ export default function Group() {
     if (!id) return;
     const { data, error } = await supabase
       .from("group_messages")
-      .select("id, content, audio_url, created_at, sender_id, group_id, sender:profiles(id,username,avatar_url)")
+      .select("id, content, audio_url, file_url, file_type, file_name, file_size, poll_data, is_read, created_at, sender_id, group_id, sender:profiles(id,username,avatar_url)")
       .eq("group_id", id)
       .order("created_at", { ascending: true });
     if (error) {
