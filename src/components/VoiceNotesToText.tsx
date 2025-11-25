@@ -566,7 +566,10 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onClick={() => deleteRecording(note.id, note.audioUrl)}
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      deleteRecording(note.id, note.audioUrl);
+                                    }}
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete recording
