@@ -173,11 +173,12 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
       }));
   }, [recordings]);
 
+  // Automatically expand the first day group only on initial load
   useEffect(() => {
-    if (!activeDay && groupedRecordings.length) {
+    if (!activeDay && groupedRecordings.length && recordings.length > 0) {
       setActiveDay(groupedRecordings[0].dayKey);
     }
-  }, [activeDay, groupedRecordings]);
+  }, [groupedRecordings.length]);
 
   const uploadAudioToStorage = async (audioBlob: Blob, userId: string, timestamp: number): Promise<string | null> => {
     try {
@@ -373,6 +374,43 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
     );
   };
 
+  const deleteRecording = async (id: string, audioUrl: string) => {
+    if (!confirm("Are you sure you want to delete this recording?")) {
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from("voice_recordings" as any)
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (dbError) throw dbError;
+
+      // Delete audio file from storage
+      // Extract file path from URL
+      const urlParts = audioUrl.split("/voice-recordings/");
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        await supabase.storage
+          .from("voice-recordings")
+          .remove([filePath]);
+      }
+
+      // Remove from local state
+      setRecordings((prev) => prev.filter((note) => note.id !== id));
+      toast.success("Recording deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete recording:", error);
+      toast.error("Failed to delete recording");
+    }
+  };
+
   const scrollToTop = () => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -509,6 +547,13 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                                 disabled={!supported || !note.transcript}
                               >
                                 {note.showTranscript ? "Hide transcript" : "Transcribe"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteRecording(note.id, note.audioUrl)}
+                              >
+                                Delete
                               </Button>
                               {!note.transcript && (
                                 <span className="text-xs text-muted-foreground">
