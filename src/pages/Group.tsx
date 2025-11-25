@@ -33,6 +33,8 @@ export default function Group() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [slideOffset, setSlideOffset] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -73,7 +75,7 @@ export default function Group() {
     if (!id) return;
     const { data, error } = await supabase
       .from("group_messages")
-      .select("*, sender:profiles(id,username,avatar_url)")
+      .select("id, content, audio_url, created_at, sender_id, group_id, sender:profiles(id,username,avatar_url)")
       .eq("group_id", id)
       .order("created_at", { ascending: true });
     if (error) {
@@ -229,10 +231,53 @@ export default function Group() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setSlideOffset(0);
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
       }
     }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setSlideOffset(0);
+      setAudioBlob(null);
+      setRecordingTime(0);
+      audioChunksRef.current = [];
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      toast.info("Recording cancelled");
+    }
+  };
+
+  // Touch handlers for slide-to-cancel
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isRecording) {
+      setTouchStartX(e.touches[0].clientX);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isRecording && touchStartX > 0) {
+      const currentX = e.touches[0].clientX;
+      const diff = touchStartX - currentX;
+      if (diff > 0) {
+        setSlideOffset(Math.min(diff, 150));
+        if (diff > 150) {
+          cancelRecording();
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isRecording && slideOffset < 150) {
+      setSlideOffset(0);
+    }
+    setTouchStartX(0);
   };
 
   const sendVoiceNote = async () => {
@@ -371,7 +416,13 @@ export default function Group() {
 
                   {/* Recording indicator - WhatsApp style */}
                   {isRecording && (
-                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-900">
+                    <div
+                      className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-red-900 transition-transform touch-none"
+                      style={{ transform: `translateX(-${slideOffset}px)`, opacity: 1 - (slideOffset / 200) }}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="relative flex h-4 w-4">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -398,7 +449,9 @@ export default function Group() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">← Slide to cancel</span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {slideOffset > 50 ? '🚫 Release to cancel' : '← Slide to cancel'}
+                        </span>
                         <Button
                           size="icon"
                           variant="ghost"
