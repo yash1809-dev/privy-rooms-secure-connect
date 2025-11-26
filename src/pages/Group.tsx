@@ -628,11 +628,15 @@ export default function Group() {
                           </div>
 
                           {/* 3-Dot Menu (hover only) */}
-                          {hoveredMessageId === m.id && isOwnMessage && (
+                          {isOwnMessage && (
                             <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-8' : 'right-0 translate-x-8'}`}>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button size="icon" variant="ghost" className="h-6 w-6">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className={`h-6 w-6 transition-opacity ${hoveredMessageId === m.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                                  >
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
