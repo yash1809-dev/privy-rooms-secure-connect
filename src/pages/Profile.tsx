@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -239,6 +239,7 @@ function EditProfileDialog({
   const [link, setLink] = useState(profile?.link || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (profile) {
@@ -307,14 +308,19 @@ function EditProfileDialog({
             </Avatar>
             <div>
               <Input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
-                className="text-sm"
+                className="hidden"
               />
-              <p className="text-xs text-muted-foreground mt-1 text-center">
-                Click to change profile picture
-              </p>
+              <Button
+                variant="ghost"
+                className="text-blue-600 font-bold hover:text-blue-700 hover:bg-transparent p-0 h-auto"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Change Profile Picture
+              </Button>
             </div>
           </div>
 
