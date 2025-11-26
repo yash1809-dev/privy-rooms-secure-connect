@@ -51,6 +51,7 @@ export default function Group() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [messageReadReceipts, setMessageReadReceipts] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!id) return;
@@ -109,14 +110,34 @@ export default function Group() {
     if (!id) return;
     const { data, error } = await supabase
       .from("group_messages")
-      .select("id, content, audio_url, file_url, file_type, file_name, file_size, poll_data, is_read, created_at, sender_id, group_id, sender:profiles(id,username,avatar_url)")
+      .select("*, sender:profiles(id,username,email,avatar_url)")
       .eq("group_id", id)
       .order("created_at", { ascending: true });
+
     if (error) {
       console.error("Error loading messages:", error);
       return;
     }
-    setMessages(data || []);
+
+    if (data) {
+      setMessages(data);
+
+      // Load read receipts for these messages
+      const messageIds = data.map(m => m.id);
+      if (messageIds.length > 0) {
+        const { data: receipts } = await (supabase as any)
+          .from("message_read_receipts")
+          .select("message_id")
+          .in("message_id", messageIds);
+
+        // Count how many people have read each message
+        const readCounts = new Map<string, number>();
+        (receipts || []).forEach((r: any) => {
+          readCounts.set(r.message_id, (readCounts.get(r.message_id) || 0) + 1);
+        });
+        setMessageReadReceipts(readCounts);
+      }
+    }
   };
 
   const markMessagesAsRead = async () => {
@@ -748,11 +769,15 @@ export default function Group() {
                                 {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
                               {isOwnMessage && (
-                                m.is_read ? (
-                                  <CheckCheck className="h-3 w-3 text-blue-500" />
-                                ) : (
-                                  <CheckCheck className="h-3 w-3 text-gray-400" />
-                                )
+                                <>
+                                  {messageReadReceipts.get(m.id) && messageReadReceipts.get(m.id)! > 0 ? (
+                                    // Blue double tick - message has been read by at least one member
+                                    <CheckCheck className="h-3 w-3 text-blue-500" />
+                                  ) : (
+                                    // Gray double tick - message delivered (sent successfully)
+                                    <CheckCheck className="h-3 w-3 text-gray-400" />
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

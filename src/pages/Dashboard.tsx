@@ -50,11 +50,13 @@ export default function Dashboard() {
   const [theme, setTheme] = useState<ThemeKey>("default");
   const [mood, setMood] = useState<MoodKey>("studying");
   const [selectedRecordingDate, setSelectedRecordingDate] = useState<Date | undefined>(undefined);
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   useEffect(() => {
     loadProfile();
     loadRoomsAndGroups();
-  }, []);
+    loadTotalUnreadCount();
+  }, []);;
 
   const loadProfile = async () => {
     try {
@@ -109,6 +111,55 @@ export default function Dashboard() {
     }
   };
 
+  const loadTotalUnreadCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all groups where user is a member
+      const { data: memberGroups } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+
+      if (!memberGroups || memberGroups.length === 0) {
+        setTotalUnreadCount(0);
+        return;
+      }
+
+      const groupIds = memberGroups.map(m => m.group_id);
+
+      // Get all messages in these groups that are NOT sent by the current user
+      const { data: groupMessages } = await supabase
+        .from("group_messages")
+        .select("id")
+        .in("group_id", groupIds)
+        .neq("sender_id", user.id);
+
+      if (!groupMessages || groupMessages.length === 0) {
+        setTotalUnreadCount(0);
+        return;
+      }
+
+      const messageIds = groupMessages.map(m => m.id);
+
+      // Get all messages the user has read
+      const { data: readReceipts } = await (supabase as any)
+        .from("message_read_receipts")
+        .select("message_id")
+        .in("message_id", messageIds)
+        .eq("user_id", user.id);
+
+      const readMessageIds = new Set((readReceipts || []).map((r: any) => r.message_id));
+
+      // Count unread messages
+      const unreadCount = groupMessages.filter(m => !readMessageIds.has(m.id)).length;
+      setTotalUnreadCount(Math.min(unreadCount, 99));
+    } catch (error) {
+      console.error("Failed to load unread count:", error);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
@@ -142,9 +193,9 @@ export default function Dashboard() {
               onClick={() => navigate("/chats")}
             >
               <MessageSquare className="h-5 w-5" />
-              {groups.length > 0 && (
+              {totalUnreadCount > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full flex items-center justify-center">
-                  {groups.length > 99 ? "99+" : groups.length}
+                  {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
                 </Badge>
               )}
             </Button>
