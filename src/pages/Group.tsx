@@ -446,7 +446,11 @@ export default function Group() {
                         </Avatar>
 
                         {/* Message Bubble */}
-                        <div className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                        <div
+                          className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end' : 'items-start'}`}
+                          onMouseEnter={() => setHoveredMessageId(m.id)}
+                          onMouseLeave={() => setHoveredMessageId(null)}
+                        >
                           <div
                             className={`relative rounded-lg p-3 ${m.audio_url
                               ? 'bg-green-100 dark:bg-green-900/30'
@@ -454,8 +458,6 @@ export default function Group() {
                                 ? 'bg-green-100 dark:bg-green-900/30'
                                 : 'bg-white dark:bg-gray-800'
                               }`}
-                            onMouseEnter={() => setHoveredMessageId(m.id)}
-                            onMouseLeave={() => setHoveredMessageId(null)}
                           >
                             {/* Sender name */}
                             {!isOwnMessage && (
