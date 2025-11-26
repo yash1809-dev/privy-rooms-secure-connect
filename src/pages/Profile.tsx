@@ -127,7 +127,10 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="flex items-start gap-4">
             <Avatar className="h-20 w-20 flex-shrink-0">
-              <AvatarImage src={me?.avatar_url || undefined} />
+              <AvatarImage
+                src={me?.avatar_url || undefined}
+                className="object-cover"
+              />
               <AvatarFallback className="text-2xl">{me?.username?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
@@ -296,7 +299,10 @@ function EditProfileDialog({
           {/* Avatar Section */}
           <div className="flex flex-col items-center gap-3">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={avatarFile ? URL.createObjectURL(avatarFile) : (profile?.avatar_url || undefined)} />
+              <AvatarImage
+                src={avatarFile ? URL.createObjectURL(avatarFile) : (profile?.avatar_url || undefined)}
+                className="object-cover"
+              />
               <AvatarFallback className="text-2xl">{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
