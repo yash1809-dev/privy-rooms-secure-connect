@@ -134,6 +134,20 @@ export default function Dashboard() {
               selectedDate={selectedRecordingDate}
               onDateSelect={setSelectedRecordingDate}
             />
+            {/* Chat Icon with Badge */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              onClick={() => navigate("/chats")}
+            >
+              <MessageSquare className="h-5 w-5" />
+              {groups.length > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full flex items-center justify-center">
+                  {groups.length > 99 ? "99+" : groups.length}
+                </Badge>
+              )}
+            </Button>
             <Avatar>
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback>{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>

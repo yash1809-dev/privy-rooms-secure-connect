@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import Features from "./pages/Features";
 import Room from "./pages/Room";
 import Group from "./pages/Group";
+import Chats from "./pages/Chats";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/features" element={<Features />} />
             <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+            <Route path="/chats" element={<AuthGuard><Chats /></AuthGuard>} />
             <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
             <Route path="/room/:id" element={<AuthGuard><Room /></AuthGuard>} />
             <Route path="/group/:id" element={<AuthGuard><Group /></AuthGuard>} />
