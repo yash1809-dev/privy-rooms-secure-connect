@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
-import { MessageSquare, BarChart3, Mic, Square, Plus, Smile, FileText, Image as ImageIcon, MoreVertical, Trash2, Download, Check, CheckCheck } from "lucide-react";
+import { MessageSquare, BarChart3, Mic, Square, Plus, Smile, FileText, Image as ImageIcon, MoreVertical, Trash2, Download, Check, CheckCheck, ArrowLeft } from "lucide-react";
 
 interface ProfileRow { id: string; username: string; email: string; avatar_url: string | null }
 
@@ -49,6 +49,8 @@ export default function Group() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -57,10 +59,23 @@ export default function Group() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'group_messages', filter: `group_id=eq.${id}` }, () => {
         loadMessages();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_typing_status', filter: `group_id=eq.${id}` }, (payload: any) => {
+        if (payload.new && payload.new.user_id !== me?.id) {
+          setTypingUsers(prev => {
+            const newSet = new Set(prev);
+            if (payload.new.is_typing) {
+              newSet.add(payload.new.user_id);
+            } else {
+              newSet.delete(payload.new.user_id);
+            }
+            return newSet;
+          });
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, me?.id]);
 
   const prevMessageCountRef = useRef(0);
 
@@ -160,17 +175,86 @@ export default function Group() {
     setFollowing((followingRes as any).data || []);
   };
 
-  const send = async () => {
+  const handleTyping = async () => {
+    if (!id || !me) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set typing status to true
+    await (supabase as any).from("group_typing_status").upsert({
+      group_id: id,
+      user_id: me.id,
+      is_typing: true,
+      updated_at: new Date().toISOString()
+    });
+
+    // Set timeout to set typing status to false
+    typingTimeoutRef.current = setTimeout(async () => {
+      await (supabase as any).from("group_typing_status").upsert({
+        group_id: id,
+        user_id: me.id,
+        is_typing: false,
+        updated_at: new Date().toISOString()
+      });
+    }, 3000);
+  };
+
+  const sendMessage = async () => {
+    if ((!text.trim() && !audioBlob) || !id) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !text.trim() || !id) return;
-      const { error } = await supabase.from("group_messages").insert({ group_id: id, sender_id: user.id, content: text.trim() });
-      if (error) {
-        console.error("Error sending message:", error);
-        toast.error("Failed to send: " + error.message);
-        return;
+      if (!user) return;
+
+      // Stop typing status immediately when sending
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      await (supabase as any).from("group_typing_status").upsert({
+        group_id: id,
+        user_id: user.id,
+        is_typing: false,
+        updated_at: new Date().toISOString()
+      });
+
+      if (audioBlob) {
+        // Upload audio to storage
+        const fileName = `${user.id}/${Date.now()}.webm`;
+        const { error: uploadError } = await supabase.storage
+          .from('voice-recordings')
+          .upload(fileName, audioBlob);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('voice-recordings')
+          .getPublicUrl(fileName);
+
+        // Send as message with audio URL
+        const { error: messageError } = await supabase
+          .from("group_messages")
+          .insert({
+            group_id: id,
+            sender_id: user.id,
+            content: `🎤 Voice message (${recordingTime}s)`,
+            audio_url: publicUrl
+          });
+
+        if (messageError) throw messageError;
+
+        setAudioBlob(null);
+        setRecordingTime(0);
+        toast.success("Voice note sent!");
+      } else if (text.trim()) {
+        const { error } = await supabase.from("group_messages").insert({ group_id: id, sender_id: user.id, content: text.trim() });
+        if (error) {
+          console.error("Error sending message:", error);
+          toast.error("Failed to send: " + error.message);
+          return;
+        }
+        setText("");
       }
-      setText("");
       // Reload messages immediately
       await loadMessages();
     } catch (e: any) {
@@ -335,48 +419,6 @@ export default function Group() {
     setTouchStartX(0);
   };
 
-  const sendVoiceNote = async () => {
-    if (!audioBlob || !id) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Upload audio to storage
-      const fileName = `${user.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage
-        .from('voice-recordings')
-        .upload(fileName, audioBlob);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('voice-recordings')
-        .getPublicUrl(fileName);
-
-      // Send as message with audio URL
-      const { error: messageError } = await supabase
-        .from("group_messages")
-        .insert({
-          group_id: id,
-          sender_id: user.id,
-          content: `🎤 Voice message (${recordingTime}s)`,
-          audio_url: publicUrl
-        });
-
-      if (messageError) throw messageError;
-
-      setAudioBlob(null);
-      setRecordingTime(0);
-      await loadMessages();
-      toast.success("Voice note sent!");
-    } catch (error: any) {
-      toast.error("Failed to send voice note: " + (error.message || "Unknown error"));
-      console.error(error);
-    }
-  };
-
   const cancelVoiceNote = () => {
     setAudioBlob(null);
     setRecordingTime(0);
@@ -459,7 +501,24 @@ export default function Group() {
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <Card>
           <CardHeader>
-            <CardTitle>{group?.name || "Group"}</CardTitle>
+            <div className="flex items-center gap-3 mb-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/chats")}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>{group?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="font-bold text-lg leading-none">{group?.name}</h1>
+                {typingUsers.size > 0 ? (
+                  <p className="text-xs text-green-500 font-medium animate-pulse">
+                    {Array.from(typingUsers).map(uid => members.find(m => m.id === uid)?.username || "Someone").join(", ")} is typing...
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{members.length} members</p>
+                )}
+              </div>
+            </div>
             <CardDescription>{group?.description}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -743,7 +802,7 @@ export default function Group() {
                       <Button
                         size="icon"
                         className="bg-green-600 hover:bg-green-700 text-white rounded-full h-12 w-12"
-                        onClick={sendVoiceNote}
+                        onClick={sendMessage}
                       >
                         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -765,7 +824,7 @@ export default function Group() {
                   {/* Recording indicator - WhatsApp style */}
                   {isRecording && (
                     <div
-                      className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-red-900 transition-transform touch-none"
+                      className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-900 transition-transform touch-none"
                       style={{ transform: `translateX(-${slideOffset}px)`, opacity: 1 - (slideOffset / 200) }}
                       onTouchStart={handleTouchStart}
                       onTouchMove={handleTouchMove}
@@ -924,13 +983,11 @@ export default function Group() {
                       <Input
                         placeholder="Type a message"
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            send();
-                          }
+                        onChange={(e) => {
+                          setText(e.target.value);
+                          handleTyping();
                         }}
+                        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                         className="flex-1 rounded-full pr-12"
                         disabled={isRecording || !!audioBlob}
                       />
@@ -955,7 +1012,7 @@ export default function Group() {
                     {/* Voice Note or Send Button */}
                     {text.trim() || audioBlob ? (
                       <Button
-                        onClick={send}
+                        onClick={sendMessage}
                         disabled={isRecording}
                         className="bg-green-600 hover:bg-green-700 text-white rounded-full h-10 w-10 p-0 flex-shrink-0"
                         size="icon"

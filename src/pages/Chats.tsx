@@ -5,14 +5,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 interface Group {
     id: string;
     name: string;
     description: string | null;
     created_at: string;
+    is_pinned?: boolean;
+    is_archived?: boolean;
 }
 
 interface GroupWithLastMessage extends Group {
@@ -30,6 +39,7 @@ export default function Chats() {
     const [filteredGroups, setFilteredGroups] = useState<GroupWithLastMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showArchived, setShowArchived] = useState(false);
 
     useEffect(() => {
         loadGroups();
@@ -43,10 +53,10 @@ export default function Chats() {
                 return;
             }
 
-            // Load groups where user is a member
+            // Load groups where user is a member, including pinned/archived status
             const { data: memberData } = await supabase
                 .from("group_members")
-                .select("group_id")
+                .select("group_id, is_pinned, is_archived")
                 .eq("user_id", user.id);
 
             if (!memberData || memberData.length === 0) {
@@ -56,6 +66,7 @@ export default function Chats() {
             }
 
             const groupIds = memberData.map(m => m.group_id);
+            const memberMap = new Map(memberData.map(m => [m.group_id, m]));
 
             // Load group details
             const { data: groupsData } = await supabase
@@ -83,7 +94,6 @@ export default function Chats() {
                         .single();
 
                     // Get unread count: messages user hasn't sent and hasn't read
-                    // First, get all messages in this group not sent by user
                     const { data: groupMsgs } = await supabase
                         .from("group_messages")
                         .select("id")
@@ -92,7 +102,6 @@ export default function Chats() {
 
                     let unreadCount = 0;
                     if (groupMsgs && groupMsgs.length > 0) {
-                        // Get read receipts for these messages by this user
                         const messageIds = groupMsgs.map(m => m.id);
                         const { data: readReceipts } = await (supabase as any)
                             .from("message_read_receipts")
@@ -104,24 +113,97 @@ export default function Chats() {
                         unreadCount = groupMsgs.filter(m => !readMessageIds.has(m.id)).length;
                     }
 
+                    const memberInfo = memberMap.get(group.id);
+
                     return {
                         ...group,
+                        is_pinned: memberInfo?.is_pinned || false,
+                        is_archived: memberInfo?.is_archived || false,
                         lastMessage: lastMsg ? {
                             content: lastMsg.content,
                             created_at: lastMsg.created_at,
                             sender_name: (lastMsg.sender as any)?.username || "Unknown"
                         } : undefined,
-                        unreadCount: Math.min(unreadCount, 99) // Cap at 99 like WhatsApp
+                        unreadCount: Math.min(unreadCount, 99)
                     };
                 })
             );
 
-            setGroups(groupsWithMessages);
-            setFilteredGroups(groupsWithMessages);
+            // Sort: Pinned first, then by date
+            const sortedGroups = groupsWithMessages.sort((a, b) => {
+                if (a.is_pinned && !b.is_pinned) return -1;
+                if (!a.is_pinned && b.is_pinned) return 1;
+                // If both pinned or both not pinned, sort by last message or creation date
+                const dateA = new Date(a.lastMessage?.created_at || a.created_at).getTime();
+                const dateB = new Date(b.lastMessage?.created_at || b.created_at).getTime();
+                return dateB - dateA;
+            });
+
+            setGroups(sortedGroups);
+            setFilteredGroups(sortedGroups);
         } catch (error) {
             console.error("Failed to load groups:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const togglePin = async (groupId: string, currentStatus: boolean, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from("group_members")
+                .update({ is_pinned: !currentStatus })
+                .eq("group_id", groupId)
+                .eq("user_id", user.id);
+
+            if (error) throw error;
+
+            setGroups(groups.map(g =>
+                g.id === groupId ? { ...g, is_pinned: !currentStatus } : g
+            ).sort((a, b) => {
+                // Re-sort locally
+                const aPinned = a.id === groupId ? !currentStatus : a.is_pinned;
+                const bPinned = b.id === groupId ? !currentStatus : b.is_pinned;
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+                const dateA = new Date(a.lastMessage?.created_at || a.created_at).getTime();
+                const dateB = new Date(b.lastMessage?.created_at || b.created_at).getTime();
+                return dateB - dateA;
+            }));
+
+            toast.success(currentStatus ? "Chat unpinned" : "Chat pinned");
+        } catch (error) {
+            toast.error("Failed to update pin status");
+        }
+    };
+
+    const toggleArchive = async (groupId: string, currentStatus: boolean, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from("group_members")
+                .update({ is_archived: !currentStatus })
+                .eq("group_id", groupId)
+                .eq("user_id", user.id);
+
+            if (error) throw error;
+
+            // Update local state
+            const updatedGroups = groups.map(g =>
+                g.id === groupId ? { ...g, is_archived: !currentStatus } : g
+            );
+            setGroups(updatedGroups);
+
+            toast.success(currentStatus ? "Chat unarchived" : "Chat archived");
+        } catch (error) {
+            toast.error("Failed to update archive status");
         }
     };
 
@@ -177,20 +259,27 @@ export default function Chats() {
 
             {/* Chat List */}
             <main className="container mx-auto px-0">
+                {showArchived && (
+                    <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Chats
+                    </div>
+                )}
+
                 {groups.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p>No chats yet. Create or join a group to start chatting!</p>
                     </div>
-                ) : filteredGroups.length === 0 ? (
+                ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                        <p>No chats found matching "{searchQuery}"</p>
+                        <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
                     </div>
                 ) : (
                     <div className="divide-y">
-                        {filteredGroups.map((group) => (
+                        {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
                             <div
                                 key={group.id}
-                                className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                                className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors cursor-pointer group relative"
                                 onClick={() => navigate(`/group/${group.id}`)}
                             >
                                 {/* Group Avatar */}
@@ -203,7 +292,10 @@ export default function Chats() {
                                 {/* Group Info */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-1">
-                                        <h3 className="font-semibold text-base truncate">{group.name}</h3>
+                                        <div className="flex items-center gap-1 min-w-0">
+                                            <h3 className="font-semibold text-base truncate">{group.name}</h3>
+                                            {group.is_pinned && <Pin className="h-3 w-3 text-muted-foreground flex-shrink-0 rotate-45" fill="currentColor" />}
+                                        </div>
                                         {group.lastMessage && (
                                             <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                                                 {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: false })}
@@ -231,8 +323,60 @@ export default function Chats() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Action Menu */}
+                                <div className="absolute right-2 top-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm hover:bg-accent">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
+                                                {group.is_pinned ? (
+                                                    <>
+                                                        <PinOff className="mr-2 h-4 w-4" /> Unpin Chat
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Pin className="mr-2 h-4 w-4" /> Pin Chat
+                                                    </>
+                                                )}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
+                                                {group.is_archived ? (
+                                                    <>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Unarchive
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Archive className="mr-2 h-4 w-4" /> Archive
+                                                    </>
+                                                )}
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Archived Chats Button */}
+                {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
+                    <div className="p-4 border-t mt-auto">
+                        <Button
+                            variant="ghost"
+                            className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowArchived(true)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Archive className="h-4 w-4" />
+                                <span>Archived</span>
+                            </div>
+                            <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
+                        </Button>
                     </div>
                 )}
             </main>
