@@ -82,11 +82,27 @@ export default function Chats() {
                         .limit(1)
                         .single();
 
-                    // Get unread count (simplified - just count all messages for now)
-                    const { count } = await supabase
+                    // Get unread count: messages user hasn't sent and hasn't read
+                    // First, get all messages in this group not sent by user
+                    const { data: groupMsgs } = await supabase
                         .from("group_messages")
-                        .select("*", { count: "exact", head: true })
-                        .eq("group_id", group.id);
+                        .select("id")
+                        .eq("group_id", group.id)
+                        .neq("sender_id", user.id);
+
+                    let unreadCount = 0;
+                    if (groupMsgs && groupMsgs.length > 0) {
+                        // Get read receipts for these messages by this user
+                        const messageIds = groupMsgs.map(m => m.id);
+                        const { data: readReceipts } = await (supabase as any)
+                            .from("message_read_receipts")
+                            .select("message_id")
+                            .in("message_id", messageIds)
+                            .eq("user_id", user.id);
+
+                        const readMessageIds = new Set((readReceipts || []).map((r: any) => r.message_id));
+                        unreadCount = groupMsgs.filter(m => !readMessageIds.has(m.id)).length;
+                    }
 
                     return {
                         ...group,
@@ -95,7 +111,7 @@ export default function Chats() {
                             created_at: lastMsg.created_at,
                             sender_name: (lastMsg.sender as any)?.username || "Unknown"
                         } : undefined,
-                        unreadCount: Math.min(count || 0, 99) // Cap at 99 like WhatsApp
+                        unreadCount: Math.min(unreadCount, 99) // Cap at 99 like WhatsApp
                     };
                 })
             );
