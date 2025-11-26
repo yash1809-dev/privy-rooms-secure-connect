@@ -6,7 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Edit2, Link as LinkIcon, ArrowLeft } from "lucide-react";
 
 interface ProfileRow {
   id: string;
@@ -14,6 +18,8 @@ interface ProfileRow {
   email: string;
   avatar_url: string | null;
   coffee_url: string | null;
+  bio: string | null;
+  link: string | null;
 }
 
 export default function Profile() {
@@ -22,6 +28,7 @@ export default function Profile() {
   const [followers, setFollowers] = useState<ProfileRow[]>([]);
   const [following, setFollowing] = useState<ProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     load();
@@ -36,7 +43,7 @@ export default function Profile() {
       }
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("id, username, email, avatar_url, coffee_url")
+        .select("id, username, email, avatar_url, coffee_url, bio, link")
         .eq("id", user.id)
         .single();
       if (pErr) throw pErr;
@@ -103,21 +110,46 @@ export default function Profile() {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Your public information</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={me?.avatar_url || undefined} />
-              <AvatarFallback>{me?.username?.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="font-semibold">{me?.username}</div>
-              <div className="text-sm text-muted-foreground">{me?.email}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {followers.length} followers • {following.length} following
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription>Your public information</CardDescription>
               </div>
-              {/* Buy me a coffee button removed as requested; global footer button remains */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditDialogOpen(true)}
+                className="rounded-full"
+              >
+                <Edit2 className="h-5 w-5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex items-start gap-4">
+            <Avatar className="h-20 w-20 flex-shrink-0">
+              <AvatarImage src={me?.avatar_url || undefined} />
+              <AvatarFallback className="text-2xl">{me?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-lg mb-1">{me?.username}</div>
+              <div className="text-sm text-muted-foreground mb-2">{me?.email}</div>
+              {me?.bio && (
+                <p className="text-sm mb-2 whitespace-pre-wrap">{me.bio}</p>
+              )}
+              {me?.link && (
+                <a
+                  href={me.link.startsWith('http') ? me.link : `https://${me.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-2"
+                >
+                  <LinkIcon className="h-3 w-3" />
+                  {me.link}
+                </a>
+              )}
+              <div className="text-xs text-muted-foreground mt-2">
+                <span className="font-semibold">{followers.length}</span> followers • <span className="font-semibold">{following.length}</span> following
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -171,53 +203,179 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
 
-        <AvatarUploader onUpdated={async () => await load()} />
         <div className="mt-6">
-          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
         </div>
+
+        <EditProfileDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          profile={me}
+          onProfileUpdated={load}
+        />
       </div>
     </div>
   );
 }
 
-function AvatarUploader({ onUpdated }: { onUpdated: () => Promise<void> | void }) {
-  const [file, setFile] = useState<File | null>(null);
+function EditProfileDialog({
+  open,
+  onOpenChange,
+  profile,
+  onProfileUpdated
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  profile: ProfileRow | null;
+  onProfileUpdated: () => void;
+}) {
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [link, setLink] = useState(profile?.link || "");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const upload = async () => {
+  useEffect(() => {
+    if (profile) {
+      setBio(profile.bio || "");
+      setLink(profile.link || "");
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
     try {
-      if (!file) return;
       setUploading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const path = `avatars/${user.id}-${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
-      await onUpdated();
-      toast.success("Profile picture updated");
-      setFile(null);
+
+      let avatarUrl = profile?.avatar_url;
+
+      // Upload avatar if changed
+      if (avatarFile) {
+        const path = `avatars/${user.id}-${Date.now()}-${avatarFile.name}`;
+        const { error: upErr } = await supabase.storage.from("avatars").upload(path, avatarFile, { upsert: true });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        avatarUrl = urlData.publicUrl;
+      }
+
+      // Update profile
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          bio: bio.trim() || null,
+          link: link.trim() || null,
+          avatar_url: avatarUrl
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast.success("Profile updated successfully!");
+      onProfileUpdated();
+      onOpenChange(false);
+      setAvatarFile(null);
     } catch (e: any) {
-      toast.error("Failed to upload avatar (ensure 'avatars' bucket is public)");
+      toast.error("Failed to update profile: " + (e.message || "Unknown error"));
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Change Profile Picture</CardTitle>
-        <CardDescription>Upload a new profile picture</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2">
-          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <Button onClick={upload} disabled={uploading || !file}>{uploading ? "Uploading..." : "Upload"}</Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogDescription>Update your profile information</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center gap-3">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={avatarFile ? URL.createObjectURL(avatarFile) : (profile?.avatar_url || undefined)} />
+              <AvatarFallback className="text-2xl">{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1 text-center">
+                Click to change profile picture
+              </p>
+            </div>
+          </div>
+
+          {/* Name (readonly) */}
+          <div className="space-y-2">
+            <Label htmlFor="username">Name</Label>
+            <Input
+              id="username"
+              value={profile?.username || ""}
+              disabled
+              className="bg-muted"
+            />
+          </div>
+
+          {/* Bio */}
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              placeholder="Tell us about yourself..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value.slice(0, 150))}
+              rows={3}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground text-right">
+              {bio.length}/150
+            </p>
+          </div>
+
+          {/* Link */}
+          <div className="space-y-2">
+            <Label htmlFor="link">Website</Label>
+            <Input
+              id="link"
+              type="url"
+              placeholder="https://yourwebsite.com"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                setAvatarFile(null);
+                setBio(profile?.bio || "");
+                setLink(profile?.link || "");
+              }}
+              className="flex-1"
+              disabled={uploading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="flex-1"
+              disabled={uploading}
+            >
+              {uploading ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
-
