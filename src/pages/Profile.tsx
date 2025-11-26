@@ -20,6 +20,7 @@ interface ProfileRow {
   coffee_url: string | null;
   bio: string | null;
   link: string | null;
+  link_title: string | null;
 }
 
 export default function Profile() {
@@ -43,7 +44,7 @@ export default function Profile() {
       }
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("id, username, email, avatar_url, coffee_url, bio, link")
+        .select("id, username, email, avatar_url, coffee_url, bio, link, link_title")
         .eq("id", user.id)
         .single();
       if (pErr) throw pErr;
@@ -144,10 +145,10 @@ export default function Profile() {
                   href={me.link.startsWith('http') ? me.link : `https://${me.link}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-2"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-2 font-medium"
                 >
                   <LinkIcon className="h-3 w-3" />
-                  {me.link}
+                  {me.link_title || me.link}
                 </a>
               )}
               <div className="text-xs text-muted-foreground mt-2">
@@ -237,6 +238,7 @@ function EditProfileDialog({
 }) {
   const [bio, setBio] = useState(profile?.bio || "");
   const [link, setLink] = useState(profile?.link || "");
+  const [linkTitle, setLinkTitle] = useState(profile?.link_title || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -245,6 +247,7 @@ function EditProfileDialog({
     if (profile) {
       setBio(profile.bio || "");
       setLink(profile.link || "");
+      setLinkTitle(profile.link_title || "");
     }
   }, [profile]);
 
@@ -255,9 +258,10 @@ function EditProfileDialog({
       if (!user) return;
 
       // Prepare update object with only bio and link
-      const updates: { bio: string | null; link: string | null; avatar_url?: string } = {
+      const updates: { bio: string | null; link: string | null; link_title: string | null; avatar_url?: string } = {
         bio: bio.trim() || null,
-        link: link.trim() || null
+        link: link.trim() || null,
+        link_title: linkTitle.trim() || null
       };
 
       // Upload avatar if changed and add to updates
@@ -352,15 +356,27 @@ function EditProfileDialog({
           </div>
 
           {/* Link */}
-          <div className="space-y-2">
-            <Label htmlFor="link">Website</Label>
-            <Input
-              id="link"
-              type="url"
-              placeholder="https://yourwebsite.com"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="link">Website URL</Label>
+              <Input
+                id="link"
+                type="url"
+                placeholder="https://..."
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkTitle">Link Title</Label>
+              <Input
+                id="linkTitle"
+                type="text"
+                placeholder="My Portfolio"
+                value={linkTitle}
+                onChange={(e) => setLinkTitle(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}
@@ -372,6 +388,7 @@ function EditProfileDialog({
                 setAvatarFile(null);
                 setBio(profile?.bio || "");
                 setLink(profile?.link || "");
+                setLinkTitle(profile?.link_title || "");
               }}
               className="flex-1"
               disabled={uploading}
