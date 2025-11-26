@@ -250,25 +250,25 @@ function EditProfileDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      let avatarUrl = profile?.avatar_url;
+      // Prepare update object with only bio and link
+      const updates: { bio: string | null; link: string | null; avatar_url?: string } = {
+        bio: bio.trim() || null,
+        link: link.trim() || null
+      };
 
-      // Upload avatar if changed
+      // Upload avatar if changed and add to updates
       if (avatarFile) {
         const path = `avatars/${user.id}-${Date.now()}-${avatarFile.name}`;
         const { error: upErr } = await supabase.storage.from("avatars").upload(path, avatarFile, { upsert: true });
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-        avatarUrl = urlData.publicUrl;
+        updates.avatar_url = urlData.publicUrl;
       }
 
-      // Update profile
+      // Update profile with only the fields we're changing
       const { error } = await supabase
         .from("profiles")
-        .update({
-          bio: bio.trim() || null,
-          link: link.trim() || null,
-          avatar_url: avatarUrl
-        })
+        .update(updates)
         .eq("id", user.id);
 
       if (error) throw error;
