@@ -238,40 +238,41 @@ export default function Chats() {
             {/* Header */}
             <header className="sticky top-0 z-10 bg-card border-b">
                 <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center gap-4 mb-4">
-                        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                        <h1 className="text-2xl font-bold">Chats</h1>
-                    </div>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                                <MoreVertical className="h-5 w-5" />
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+                                <ArrowLeft className="h-5 w-5" />
                             </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setCreateGroupOpen(true)}>
-                                <Plus className="mr-2 h-4 w-4" /> New Group
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                            <h1 className="text-2xl font-bold">Chats</h1>
+                        </div>
 
-                <div className="container mx-auto px-4 pb-4">
-                    {/* Search Input */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="text"
-                            placeholder="Search chats..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="rounded-full">
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setCreateGroupOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" /> New Group
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-                </div>
+
+                    <div className="container mx-auto px-4 pb-4">
+                        {/* Search Input */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Search chats..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
             </header>
 
             {/* Chat List */}
@@ -398,7 +399,11 @@ export default function Chats() {
                 )}
             </main>
 
-            <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
+            <CreateGroupDialog
+                open={createGroupOpen}
+                onOpenChange={setCreateGroupOpen}
+                trigger={<span className="hidden" />}
+            />
         </div>
     );
 }
