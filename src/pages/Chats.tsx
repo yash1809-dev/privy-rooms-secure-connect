@@ -11,9 +11,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 
 interface Group {
     id: string;
@@ -40,6 +41,7 @@ export default function Chats() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showArchived, setShowArchived] = useState(false);
+    const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
     useEffect(() => {
         loadGroups();
@@ -243,6 +245,21 @@ export default function Chats() {
                         <h1 className="text-2xl font-bold">Chats</h1>
                     </div>
 
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                                <MoreVertical className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => setCreateGroupOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" /> New Group
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <div className="container mx-auto px-4 pb-4">
                     {/* Search Input */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -380,6 +397,8 @@ export default function Chats() {
                     </div>
                 )}
             </main>
+
+            <CreateGroupDialog open={createGroupOpen} onOpenChange={setCreateGroupOpen} />
         </div>
     );
 }

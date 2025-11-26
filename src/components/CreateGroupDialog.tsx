@@ -19,9 +19,19 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import * as bcrypt from "bcryptjs";
 
-export const CreateGroupDialog = () => {
+interface CreateGroupDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: React.ReactNode;
+}
+
+export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controlledOnOpenChange, trigger }: CreateGroupDialogProps = {}) => {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
@@ -61,7 +71,7 @@ export const CreateGroupDialog = () => {
       toast.success("Group created successfully!", {
         description: "Share the link to invite others"
       });
-      
+
       setOpen(false);
       navigate(`/group/${data.id}`);
     } catch (error: any) {
@@ -74,10 +84,12 @@ export const CreateGroupDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary" className="w-full gap-2">
-          <Plus className="h-4 w-4" />
-          New Group
-        </Button>
+        {trigger || (
+          <Button variant="secondary" className="w-full gap-2">
+            <Plus className="h-4 w-4" />
+            New Group
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
