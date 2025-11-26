@@ -474,8 +474,36 @@ export default function Group() {
 
                             {/* Voice Note */}
                             {m.audio_url && (
-                              <div className="flex items-center gap-2">
-                                <audio controls src={m.audio_url} className="max-w-full h-8" />
+                              <div className="flex items-center gap-3 py-2">
+                                {/* Play/Pause Button */}
+                                <button className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                  </svg>
+                                </button>
+
+                                {/* Waveform Dots */}
+                                <div className="flex-1 flex items-center gap-1 h-8">
+                                  {[...Array(40)].map((_, i) => {
+                                    const heights = [60, 40, 70, 50, 80, 45, 65, 55, 75, 50]; // Varied heights
+                                    const height = heights[i % heights.length];
+                                    return (
+                                      <div
+                                        key={i}
+                                        className="flex-1 bg-white/60 rounded-full min-w-[2px]"
+                                        style={{ height: `${height}%` }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Duration */}
+                                <div className="text-xs text-white/80 font-medium min-w-[35px]">
+                                  0:00
+                                </div>
+
+                                {/* Hidden actual audio element for functionality */}
+                                <audio src={m.audio_url} className="hidden" />
                               </div>
                             )}
 
