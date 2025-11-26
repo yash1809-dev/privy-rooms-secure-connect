@@ -438,8 +438,6 @@ export default function Group() {
                       <div
                         key={m.id}
                         className={`flex items-end gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} group`}
-                        onMouseEnter={() => setHoveredMessageId(m.id)}
-                        onMouseLeave={() => setHoveredMessageId(null)}
                       >
                         {/* Profile Photo */}
                         <Avatar className="h-8 w-8 flex-shrink-0">
@@ -449,12 +447,16 @@ export default function Group() {
 
                         {/* Message Bubble */}
                         <div className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-                          <div className={`relative rounded-lg p-3 ${m.audio_url
-                            ? 'bg-green-100 dark:bg-green-900/30'
-                            : isOwnMessage
+                          <div
+                            className={`relative rounded-lg p-3 ${m.audio_url
                               ? 'bg-green-100 dark:bg-green-900/30'
-                              : 'bg-white dark:bg-gray-800'
-                            }`}>
+                              : isOwnMessage
+                                ? 'bg-green-100 dark:bg-green-900/30'
+                                : 'bg-white dark:bg-gray-800'
+                              }`}
+                            onMouseEnter={() => setHoveredMessageId(m.id)}
+                            onMouseLeave={() => setHoveredMessageId(null)}
+                          >
                             {/* Sender name */}
                             {!isOwnMessage && (
                               <div className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">
