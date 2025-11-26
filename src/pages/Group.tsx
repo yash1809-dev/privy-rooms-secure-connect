@@ -447,7 +447,7 @@ export default function Group() {
 
                         {/* Message Bubble */}
                         <div
-                          className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end' : 'items-start'}`}
+                          className={`flex-1 max-w-[70%] relative ${isOwnMessage ? 'items-end before:absolute before:inset-0 before:-left-12 before:w-[calc(100%+3rem)]' : 'items-start before:absolute before:inset-0 before:-right-12 before:w-[calc(100%+3rem)]'}`}
                           onMouseEnter={() => setHoveredMessageId(m.id)}
                           onMouseLeave={() => setHoveredMessageId(null)}
                         >
