@@ -83,14 +83,16 @@ export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controll
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="secondary" className="w-full gap-2">
-            <Plus className="h-4 w-4" />
-            New Group
-          </Button>
-        )}
-      </DialogTrigger>
+      {(!isControlled || trigger) && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="secondary" className="w-full gap-2">
+              <Plus className="h-4 w-4" />
+              New Group
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create a Group</DialogTitle>

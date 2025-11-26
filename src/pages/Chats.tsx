@@ -259,20 +259,21 @@ export default function Chats() {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
+                </div>
 
-                    <div className="container mx-auto px-4 pb-4">
-                        {/* Search Input */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search chats..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
+                <div className="container mx-auto px-4 pb-4">
+                    {/* Search Input */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Search chats..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
                     </div>
+                </div>
             </header>
 
             {/* Chat List */}
@@ -402,7 +403,6 @@ export default function Chats() {
             <CreateGroupDialog
                 open={createGroupOpen}
                 onOpenChange={setCreateGroupOpen}
-                trigger={<span className="hidden" />}
             />
         </div>
     );
