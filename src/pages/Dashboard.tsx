@@ -10,8 +10,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { LogOut, Users, MessageSquare, Clock, User } from "lucide-react";
+import { LogOut, Users, MessageSquare, Clock, User, MoreVertical, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import RoomThemeSelector, { RoomThemeBadge, ThemeKey } from "@/components/RoomThemeSelector";
@@ -179,40 +180,54 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">PrivyRooms</h1>
 
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+          <div className="flex items-center gap-3">
+            {/* Calendar Icon */}
             <RecordingsCalendar
               selectedDate={selectedRecordingDate}
               onDateSelect={setSelectedRecordingDate}
             />
-            {/* Chat Icon with Badge */}
+
+            {/* Instagram-style Message Icon with Badge */}
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
+              className="relative rounded-full"
               onClick={() => navigate("/chats")}
             >
-              <MessageSquare className="h-5 w-5" />
+              <MessageSquare className="h-5 w-5 fill-none stroke-current" strokeWidth={2} />
               {totalUnreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full flex items-center justify-center">
+                <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center">
                   {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
                 </Badge>
               )}
             </Button>
-            <Avatar>
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback>{profile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="hidden md:block">
-              <p className="font-medium">{profile?.username}</p>
-              <p className="text-sm text-muted-foreground">{profile?.email}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/profile")}>
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
+
+            {/* 3-Dot Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <div className="flex items-center justify-between w-full cursor-pointer">
+                    <span>Appearance</span>
+                    <ThemeToggle />
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
