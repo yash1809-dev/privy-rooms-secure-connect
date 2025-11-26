@@ -1,5 +1,5 @@
 -- =================================================================
--- SUPPORT MULTIPLE LINKS
+-- SUPPORT MULTIPLE LINKS (ROBUST VERSION)
 -- Run this script in Supabase SQL Editor
 -- =================================================================
 
@@ -7,19 +7,35 @@
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS links JSONB DEFAULT '[]'::jsonb;
 
--- 2. Migrate existing data (if any) from old columns to new 'links' array
--- This ensures we don't lose the user's current link
-UPDATE public.profiles
-SET links = jsonb_build_array(
-  jsonb_build_object(
-    'title', COALESCE(link_title, 'Website'),
-    'url', link
-  )
-)
-WHERE link IS NOT NULL AND link != '' AND (links IS NULL OR links = '[]'::jsonb);
+-- 2. Migrate existing data safely using a DO block
+-- This handles cases where 'link_title' column might not exist
+DO $$
+BEGIN
+  -- Check if link_title column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'link_title') THEN
+    -- Run update using link_title
+    EXECUTE 'UPDATE public.profiles
+             SET links = jsonb_build_array(
+               jsonb_build_object(
+                 ''title'', COALESCE(link_title, ''Website''),
+                 ''url'', link
+               )
+             )
+             WHERE link IS NOT NULL AND link != '''' AND (links IS NULL OR links = ''[]''::jsonb)';
+  ELSE
+    -- Run update without link_title (default to 'Website')
+    EXECUTE 'UPDATE public.profiles
+             SET links = jsonb_build_array(
+               jsonb_build_object(
+                 ''title'', ''Website'',
+                 ''url'', link
+               )
+             )
+             WHERE link IS NOT NULL AND link != '''' AND (links IS NULL OR links = ''[]''::jsonb)';
+  END IF;
+END $$;
 
 -- 3. Drop old columns to clean up schema
--- We do this safely by checking if they exist
 ALTER TABLE public.profiles
 DROP COLUMN IF EXISTS link,
 DROP COLUMN IF EXISTS link_title;
