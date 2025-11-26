@@ -528,23 +528,34 @@ export default function Group() {
 
                                             const newPollData = { ...m.poll_data };
                                             const allowMultiple = newPollData.allow_multiple_votes;
-                                            const votedUsers = newPollData.voted_users || [];
 
-                                            // Check if user has already voted (if multiple votes not allowed)
-                                            if (!allowMultiple && votedUsers.includes(user.id)) {
-                                              toast.error('You have already voted on this poll');
+                                            // Check if user already voted for THIS specific option
+                                            const alreadyVotedForThis = newPollData.options[idx]?.voters?.includes(user.id);
+                                            if (alreadyVotedForThis) {
+                                              toast.error('You already voted for this option');
                                               return;
                                             }
 
-                                            // Update the selected option
+                                            // If multiple answers NOT allowed, remove user's previous vote
+                                            if (!allowMultiple) {
+                                              newPollData.options = newPollData.options.map((opt: any) => {
+                                                const voters = opt.voters || [];
+                                                if (voters.includes(user.id)) {
+                                                  // Remove user's vote from this option
+                                                  return {
+                                                    ...opt,
+                                                    votes: Math.max((opt.votes || 0) - 1, 0),
+                                                    voters: voters.filter((v: string) => v !== user.id)
+                                                  };
+                                                }
+                                                return opt;
+                                              });
+                                            }
+
+                                            // Add vote to the selected option
                                             newPollData.options = newPollData.options.map((opt: any, i: number) => {
                                               if (i === idx) {
                                                 const voters = opt.voters || [];
-                                                // Check if user already voted for this option
-                                                if (voters.includes(user.id)) {
-                                                  toast.error('You already voted for this option');
-                                                  return opt;
-                                                }
                                                 return {
                                                   ...opt,
                                                   votes: (opt.votes || 0) + 1,
@@ -553,11 +564,6 @@ export default function Group() {
                                               }
                                               return opt;
                                             });
-
-                                            // Add user to voted_users list if not allowing multiple votes
-                                            if (!allowMultiple && !votedUsers.includes(user.id)) {
-                                              newPollData.voted_users = [...votedUsers, user.id];
-                                            }
 
                                             await supabase
                                               .from('group_messages')
