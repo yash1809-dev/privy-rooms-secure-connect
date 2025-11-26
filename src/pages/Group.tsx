@@ -82,6 +82,10 @@ export default function Group() {
       const g = await supabase.from("groups").select("*").eq("id", id).single();
       setGroup(g.data);
       await Promise.all([loadMessages(), loadMembers(), loadFollowLists()]);
+
+      // Mark messages as read when entering chat
+      // TODO: Uncomment after running ADD_MESSAGE_READ_STATUS.sql migration
+      // await markMessagesAsRead();
     } catch (e) {
       toast.error("Failed to load group");
     }
@@ -100,6 +104,48 @@ export default function Group() {
     }
     setMessages(data || []);
   };
+
+  // TODO: Uncomment after running ADD_MESSAGE_READ_STATUS.sql migration
+  /*
+  const markMessagesAsRead = async () => {
+    if (!id) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all message IDs in this group
+      const { data: groupMessages } = await supabase
+        .from("group_messages")
+        .select("id")
+        .eq("group_id", id);
+
+      if (!groupMessages || groupMessages.length === 0) return;
+
+      const messageIds = groupMessages.map(m => m.id);
+
+      // Insert read receipts for all messages (upsert to avoid duplicates)
+      const readReceipts = messageIds.map(messageId => ({
+        message_id: messageId,
+        user_id: user.id,
+        read_at: new Date().toISOString()
+      }));
+
+      await supabase
+        .from("message_read_receipts")
+        .upsert(readReceipts, { onConflict: "message_id,user_id" });
+
+      // Update is_read for messages sent by others
+      await supabase
+        .from("group_messages")
+        .update({ is_read: true })
+        .eq("group_id", id)
+        .neq("sender_id", user.id);
+
+    } catch (error) {
+      console.error("Failed to mark messages as read:", error);
+    }
+  };
+  */
 
   const loadMembers = async () => {
     const { data } = await supabase.from("group_members").select("user:profiles(id,username,email,avatar_url)").eq("group_id", id);

@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Group {
@@ -26,7 +27,9 @@ interface GroupWithLastMessage extends Group {
 export default function Chats() {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<GroupWithLastMessage[]>([]);
+    const [filteredGroups, setFilteredGroups] = useState<GroupWithLastMessage[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         loadGroups();
@@ -98,12 +101,29 @@ export default function Chats() {
             );
 
             setGroups(groupsWithMessages);
+            setFilteredGroups(groupsWithMessages);
         } catch (error) {
             console.error("Failed to load groups:", error);
         } finally {
             setLoading(false);
         }
     };
+
+    // Filter groups based on search query
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredGroups(groups);
+            return;
+        }
+
+        const query = searchQuery.toLowerCase();
+        const filtered = groups.filter(group =>
+            group.name.toLowerCase().includes(query) ||
+            group.lastMessage?.content.toLowerCase().includes(query) ||
+            group.lastMessage?.sender_name.toLowerCase().includes(query)
+        );
+        setFilteredGroups(filtered);
+    }, [searchQuery, groups]);
 
     if (loading) {
         return (
@@ -117,11 +137,25 @@ export default function Chats() {
         <div className="min-h-screen bg-background">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-card border-b">
-                <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <h1 className="text-2xl font-bold">Chats</h1>
+                <div className="container mx-auto px-4 py-4">
+                    <div className="flex items-center gap-4 mb-4">
+                        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <h1 className="text-2xl font-bold">Chats</h1>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Search chats..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
                 </div>
             </header>
 
@@ -131,9 +165,13 @@ export default function Chats() {
                     <div className="text-center py-12 text-muted-foreground">
                         <p>No chats yet. Create or join a group to start chatting!</p>
                     </div>
+                ) : filteredGroups.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <p>No chats found matching "{searchQuery}"</p>
+                    </div>
                 ) : (
                     <div className="divide-y">
-                        {groups.map((group) => (
+                        {filteredGroups.map((group) => (
                             <div
                                 key={group.id}
                                 className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors cursor-pointer"
