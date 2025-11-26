@@ -41,6 +41,7 @@ export default function Chats() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showArchived, setShowArchived] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
     useEffect(() => {
@@ -246,14 +247,18 @@ export default function Chats() {
                             <h1 className="text-2xl font-bold">Chats</h1>
                         </div>
 
-                        <DropdownMenu>
+                        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="rounded-full">
                                     <MoreVertical className="h-5 w-5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setCreateGroupOpen(true)}>
+                                <DropdownMenuItem onSelect={() => {
+                                    setDropdownOpen(false);
+                                    // Small delay to let dropdown close before opening dialog
+                                    setTimeout(() => setCreateGroupOpen(true), 100);
+                                }}>
                                     <Plus className="mr-2 h-4 w-4" /> New Group
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
