@@ -19,8 +19,7 @@ interface ProfileRow {
   avatar_url: string | null;
   coffee_url: string | null;
   bio: string | null;
-  link: string | null;
-  link_title: string | null;
+  links: { title: string; url: string }[] | null;
 }
 
 export default function Profile() {
@@ -44,7 +43,7 @@ export default function Profile() {
       }
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("id, username, email, avatar_url, coffee_url, bio, link, link_title")
+        .select("id, username, email, avatar_url, coffee_url, bio, links")
         .eq("id", user.id)
         .single();
       if (pErr) throw pErr;
@@ -140,16 +139,21 @@ export default function Profile() {
               {me?.bio && (
                 <p className="text-sm mb-2 whitespace-pre-wrap">{me.bio}</p>
               )}
-              {me?.link && (
-                <a
-                  href={me.link.startsWith('http') ? me.link : `https://${me.link}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-2 font-medium"
-                >
-                  <LinkIcon className="h-3 w-3" />
-                  {me.link_title || me.link}
-                </a>
+              {me?.links && me.links.length > 0 && (
+                <div className="flex flex-col gap-1 mb-2">
+                  {me.links.map((link, i) => (
+                    <a
+                      key={i}
+                      href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      {link.title || link.url}
+                    </a>
+                  ))}
+                </div>
               )}
               <div className="text-xs text-muted-foreground mt-2">
                 <span className="font-semibold">{followers.length}</span> followers • <span className="font-semibold">{following.length}</span> following
@@ -237,8 +241,7 @@ function EditProfileDialog({
   onProfileUpdated: () => void;
 }) {
   const [bio, setBio] = useState(profile?.bio || "");
-  const [link, setLink] = useState(profile?.link || "");
-  const [linkTitle, setLinkTitle] = useState(profile?.link_title || "");
+  const [links, setLinks] = useState<{ title: string; url: string }[]>(profile?.links || []);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,8 +249,7 @@ function EditProfileDialog({
   useEffect(() => {
     if (profile) {
       setBio(profile.bio || "");
-      setLink(profile.link || "");
-      setLinkTitle(profile.link_title || "");
+      setLinks(profile.links || []);
     }
   }, [profile]);
 
@@ -257,11 +259,10 @@ function EditProfileDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Prepare update object with only bio and link
-      const updates: { bio: string | null; link: string | null; link_title: string | null; avatar_url?: string } = {
+      // Prepare update object
+      const updates: { bio: string | null; links: any; avatar_url?: string } = {
         bio: bio.trim() || null,
-        link: link.trim() || null,
-        link_title: linkTitle.trim() || null
+        links: links.filter(l => l.url.trim() !== "") // Filter out empty links
       };
 
       // Upload avatar if changed and add to updates
@@ -355,27 +356,64 @@ function EditProfileDialog({
             </p>
           </div>
 
-          {/* Link */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="link">Website URL</Label>
-              <Input
-                id="link"
-                type="url"
-                placeholder="https://..."
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-              />
+          {/* Links Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Links</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLinks([...links, { title: "", url: "" }])}
+                className="h-7 text-xs"
+              >
+                + Add Link
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="linkTitle">Link Title</Label>
-              <Input
-                id="linkTitle"
-                type="text"
-                placeholder="My Portfolio"
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-              />
+
+            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+              {links.map((link, index) => (
+                <div key={index} className="grid grid-cols-[1fr,1fr,auto] gap-2 items-start">
+                  <Input
+                    placeholder="Title (e.g. Instagram)"
+                    value={link.title}
+                    onChange={(e) => {
+                      const newLinks = [...links];
+                      newLinks[index].title = e.target.value;
+                      setLinks(newLinks);
+                    }}
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    placeholder="URL"
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...links];
+                      newLinks[index].url = e.target.value;
+                      setLinks(newLinks);
+                    }}
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const newLinks = links.filter((_, i) => i !== index);
+                      setLinks(newLinks);
+                    }}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  >
+                    <span className="sr-only">Remove</span>
+                    &times;
+                  </Button>
+                </div>
+              ))}
+              {links.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No links added yet.
+                </p>
+              )}
             </div>
           </div>
 
@@ -387,8 +425,7 @@ function EditProfileDialog({
                 onOpenChange(false);
                 setAvatarFile(null);
                 setBio(profile?.bio || "");
-                setLink(profile?.link || "");
-                setLinkTitle(profile?.link_title || "");
+                setLinks(profile?.links || []);
               }}
               className="flex-1"
               disabled={uploading}
