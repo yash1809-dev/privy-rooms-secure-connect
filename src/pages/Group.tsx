@@ -62,8 +62,14 @@ export default function Group() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const prevMessageCountRef = useRef(0);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only scroll if new messages were added (count increased)
+    if (messages.length > prevMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   const load = async () => {
