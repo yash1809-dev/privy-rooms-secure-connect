@@ -62,6 +62,7 @@ export default function Chats() {
 
     useEffect(() => {
         loadGroups();
+        loadCallHistory();
     }, []);
 
     const loadGroups = async () => {
@@ -203,6 +204,43 @@ export default function Chats() {
         } catch (error: any) {
             toast.error("Failed to start call: " + (error.message || "Unknown error"));
             console.error(error);
+        }
+    };
+
+    const loadCallHistory = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: calls } = await (supabase as any)
+                .from("video_calls")
+                .select("id, creator_id, status, created_at")
+                .or(`creator_id.eq.${user.id}`)
+                .order("created_at", { ascending: false })
+                .limit(20);
+
+            if (!calls) {
+                setCallHistory([]);
+                return;
+            }
+
+            const callsWithParticipants = await Promise.all(
+                calls.map(async (call: any) => {
+                    const { data: participants } = await (supabase as any)
+                        .from("call_participants")
+                        .select("user_id")
+                        .eq("call_id", call.id);
+
+                    return {
+                        ...call,
+                        participants: participants?.map((p: any) => p.user_id) || [],
+                    };
+                })
+            );
+
+            setCallHistory(callsWithParticipants);
+        } catch (error) {
+            console.error("Failed to load call history:", error);
         }
     };
 
