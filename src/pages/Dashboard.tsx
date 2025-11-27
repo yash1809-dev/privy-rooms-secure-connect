@@ -264,49 +264,6 @@ export default function Dashboard() {
           {/* Voice Notes to Text */}
           <VoiceNotesToText selectedDate={selectedRecordingDate} />
 
-          {/* Room theme + mood controls */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Room Appearance & Status</CardTitle>
-              <CardDescription>Customize the vibe and look</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-                <RoomThemeSelector value={theme} onChange={setTheme} compact />
-                <RoomStatusMood value={mood} onChange={setMood} compact />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Create Section */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <Card className="hover:shadow-[var(--shadow-smooth)] transition-shadow cursor-pointer">
-              <CardHeader>
-                <Users className="h-12 w-12 text-primary mb-2" />
-                <CardTitle>Create a Room</CardTitle>
-                <CardDescription>
-                  Start a short-lived interactive session for real-time collaboration
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CreateRoomDialog />
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-[var(--shadow-smooth)] transition-shadow cursor-pointer">
-              <CardHeader>
-                <MessageSquare className="h-12 w-12 text-secondary mb-2" />
-                <CardTitle>Create a Group</CardTitle>
-                <CardDescription>
-                  Set up a long-term chat hub for your team or classmates
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CreateGroupDialog />
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Rooms Section */}
           {rooms.length > 0 && (
             <Card className="mb-8">
