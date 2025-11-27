@@ -11,10 +11,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus } from "lucide-react";
+import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus, Video } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+import { ContactSelectorDialog } from "@/components/ContactSelectorDialog";
+import { VideoCallRoom } from "@/components/VideoCallRoom";
 
 interface Group {
     id: string;
@@ -43,6 +45,10 @@ export default function Chats() {
     const [showArchived, setShowArchived] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [createGroupOpen, setCreateGroupOpen] = useState(false);
+    const [contactSelectorOpen, setContactSelectorOpen] = useState(false);
+    const [videoCallOpen, setVideoCallOpen] = useState(false);
+    const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+    const [currentCallParticipants, setCurrentCallParticipants] = useState<string[]>([]);
 
     useEffect(() => {
         loadGroups();
@@ -148,6 +154,45 @@ export default function Chats() {
             console.error("Failed to load groups:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleStartCall = async (selectedContactIds: string[]) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Create video call
+            const { data: call, error: callError } = await supabase
+                .from("video_calls")
+                .insert({ creator_id: user.id, status: "active" })
+                .select()
+                .single();
+
+            if (callError) throw callError;
+
+            // Add participants
+            const participants = [user.id, ...selectedContactIds];
+            const participantsData = participants.map(id => ({
+                call_id: call.id,
+                user_id: id,
+            }));
+
+            const { error: participantError } = await supabase
+                .from("call_participants")
+                .insert(participantsData);
+
+            if (participantError) throw participantError;
+
+            // Open video call room
+            setCurrentCallId(call.id);
+            setCurrentCallParticipants(participants);
+            setVideoCallOpen(true);
+
+            toast.success("Video call started!");
+        } catch (error: any) {
+            toast.error("Failed to start call: " + (error.message || "Unknown error"));
+            console.error(error);
         }
     };
 
@@ -260,6 +305,12 @@ export default function Chats() {
                                     setTimeout(() => setCreateGroupOpen(true), 100);
                                 }}>
                                     <Plus className="mr-2 h-4 w-4" /> New Group
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    setDropdownOpen(false);
+                                    setTimeout(() => setContactSelectorOpen(true), 100);
+                                }}>
+                                    <Video className="mr-2 h-4 w-4" /> Video Call
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -405,9 +456,26 @@ export default function Chats() {
                 )}
             </main>
 
+            {/* Contact Selector Dialog */}
+            <ContactSelectorDialog
+                open={contactSelectorOpen}
+                onOpenChange={setContactSelectorOpen}
+                onStartCall={handleStartCall}
+            />
+
+            {/* Video Call Room */}
+            <VideoCallRoom
+                open={videoCallOpen}
+                onOpenChange={setVideoCallOpen}
+                callId={currentCallId}
+                participants={currentCallParticipants}
+            />
+
+            {/* Create Group Dialog */}
             <CreateGroupDialog
                 open={createGroupOpen}
                 onOpenChange={setCreateGroupOpen}
+                onGroupCreated={loadGroups}
             />
         </div>
     );
