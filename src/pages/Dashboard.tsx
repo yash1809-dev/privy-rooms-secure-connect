@@ -6,13 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Footer } from "@/components/Footer";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/components/ThemeProvider";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { LogOut, Users, MessageSquare, Clock, User, MoreVertical, Calendar } from "lucide-react";
+import { LogOut, Users, MessageSquare, Clock, User, MoreVertical, Calendar, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent
+} from "@/components/ui/dropdown-menu";
 import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import RoomThemeSelector, { RoomThemeBadge, ThemeKey } from "@/components/RoomThemeSelector";
@@ -52,6 +61,7 @@ export default function Dashboard() {
   const [mood, setMood] = useState<MoodKey>("studying");
   const [selectedRecordingDate, setSelectedRecordingDate] = useState<Date | undefined>(undefined);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const { setTheme: setAppTheme } = useTheme();
 
   useEffect(() => {
     loadProfile();
@@ -215,12 +225,24 @@ export default function Dashboard() {
                   <span>Profile</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <div className="flex items-center justify-between w-full cursor-pointer">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                     <span>Appearance</span>
-                    <ThemeToggle />
-                  </div>
-                </DropdownMenuItem>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setAppTheme("light")}>
+                      Light
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAppTheme("dark")}>
+                      Dark
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAppTheme("system")}>
+                      System
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
                   <LogOut className="mr-2 h-4 w-4" />
