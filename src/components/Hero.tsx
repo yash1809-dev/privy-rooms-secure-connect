@@ -8,9 +8,12 @@ export const Hero = () => {
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 z-0">
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-40"
-          style={{ backgroundImage: `url(${heroBg})` }}
+        <img
+          src={heroBg}
+          alt="Background"
+          className="absolute inset-0 w-full h-full object-cover opacity-40"
+          loading="eager"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-[var(--gradient-hero)] opacity-90" />
       </div>
@@ -20,11 +23,11 @@ export const Hero = () => {
         <div className="flex items-center justify-center mb-6">
           <Shield className="h-16 w-16 text-primary-foreground animate-pulse" />
         </div>
-        
+
         <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6 tracking-tight">
           PrivyRooms
         </h1>
-        
+
         <p className="text-xl md:text-2xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
           Secure collaboration spaces for teams and friends. Create Rooms for interactive sessions or Groups for long-term collaboration.
         </p>
