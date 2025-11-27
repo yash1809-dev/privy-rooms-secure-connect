@@ -10,7 +10,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { LogOut, Users, MessageSquare, Clock, User, MoreVertical, Calendar, Sun, Moon } from "lucide-react";
+import { LogOut, Users, MessageSquare, Clock, User, MoreVertical, Calendar, Sun, Moon, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -204,7 +204,7 @@ export default function Dashboard() {
               className="relative rounded-full"
               onClick={() => navigate("/chats")}
             >
-              <MessageSquare className="h-5 w-5 fill-none stroke-current" strokeWidth={2} />
+              <Send className="h-5 w-5" />
               {totalUnreadCount > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center">
                   {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
