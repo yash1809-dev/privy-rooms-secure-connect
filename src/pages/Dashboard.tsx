@@ -215,7 +215,7 @@ export default function Dashboard() {
             {/* 3-Dot Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full focus-visible:ring-0 focus-visible:outline-none">
+                <Button variant="ghost" size="icon" className="rounded-full focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
