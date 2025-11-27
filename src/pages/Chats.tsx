@@ -11,7 +11,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus, Video } from "lucide-react";
+import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus, Video, Phone, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
@@ -36,6 +36,14 @@ interface GroupWithLastMessage extends Group {
     unreadCount: number;
 }
 
+interface VideoCall {
+    id: string;
+    creator_id: string;
+    status: string;
+    created_at: string;
+    participants: string[];
+}
+
 export default function Chats() {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<GroupWithLastMessage[]>([]);
@@ -49,6 +57,8 @@ export default function Chats() {
     const [videoCallOpen, setVideoCallOpen] = useState(false);
     const [currentCallId, setCurrentCallId] = useState<string | null>(null);
     const [currentCallParticipants, setCurrentCallParticipants] = useState<string[]>([]);
+    const [activeTab, setActiveTab] = useState<"chats" | "calls">("chats");
+    const [callHistory, setCallHistory] = useState<VideoCall[]>([]);
 
     useEffect(() => {
         loadGroups();
