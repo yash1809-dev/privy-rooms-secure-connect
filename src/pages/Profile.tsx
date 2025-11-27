@@ -247,11 +247,12 @@ function EditProfileDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (profile) {
+    if (open && profile) {
       setBio(profile.bio || "");
       setLinks(profile.links || []);
+      setAvatarFile(null);
     }
-  }, [profile]);
+  }, [open, profile]);
 
   const handleSave = async () => {
     try {
