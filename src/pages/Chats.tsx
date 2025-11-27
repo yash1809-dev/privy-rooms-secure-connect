@@ -328,202 +328,234 @@ export default function Chats() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-card border-b">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                                <ArrowLeft className="h-5 w-5" />
-                            </Button>
-                            <h1 className="text-2xl font-bold">Chats</h1>
-                        </div>
+        <div className="min-h-screen bg-background flex">
+            {/* Left Sidebar - Desktop only */}
+            <aside className="hidden lg:flex flex-col w-20 border-r bg-card">
+                {/* Chats Tab */}
+                <button
+                    className={`flex flex-col items-center justify-center py-6 gap-2 transition-colors relative ${activeTab === "chats" ? "bg-accent" : "hover:bg-accent/50"
+                        }`}
+                    onClick={() => setActiveTab("chats")}
+                >
+                    <MessageSquare className="h-6 w-6" />
+                    <span className="text-xs">Chats</span>
+                    {filteredGroups.filter(g => !g.is_archived).reduce((sum, g) => sum + g.unreadCount, 0) > 0 && (
+                        <Badge className="absolute top-2 right-2 h-5 min-w-[20px] px-1 bg-red-500 text-white text-xs">
+                            {Math.min(99, filteredGroups.filter(g => !g.is_archived).reduce((sum, g) => sum + g.unreadCount, 0))}
+                        </Badge>
+                    )}
+                </button>
 
-                        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="rounded-full">
-                                    <MoreVertical className="h-5 w-5" />
+                {/* Calls Tab */}
+                <button
+                    className={`flex flex-col items-center justify-center py-6 gap-2 transition-colors ${activeTab === "calls" ? "bg-accent" : "hover:bg-accent/50"
+                        }`}
+                    onClick={() => setActiveTab("calls")}
+                >
+                    <Phone className="h-6 w-6" />
+                    <span className="text-xs">Calls</span>
+                </button>
+            </aside>
+
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col">
+                {/* Header */}
+                <header className="sticky top-0 z-10 bg-card border-b">
+                    <div className="container mx-auto px-4 py-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+                                    <ArrowLeft className="h-5 w-5" />
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => {
-                                    setDropdownOpen(false);
-                                    setTimeout(() => setCreateGroupOpen(true), 100);
-                                }}>
-                                    <Plus className="mr-2 h-4 w-4" /> New Group
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                    setDropdownOpen(false);
-                                    setShowArchived(true);
-                                }}>
-                                    <Archive className="mr-2 h-4 w-4" /> Archived Chats
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
+                                <h1 className="text-2xl font-bold">Chats</h1>
+                            </div>
 
-                <div className="container mx-auto px-4 pb-4">
-                    {/* Search Input */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="text"
-                            placeholder="Search chats..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
+                            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="rounded-full">
+                                        <MoreVertical className="h-5 w-5" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={() => {
+                                        setDropdownOpen(false);
+                                        setTimeout(() => setCreateGroupOpen(true), 100);
+                                    }}>
+                                        <Plus className="mr-2 h-4 w-4" /> New Group
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                        setDropdownOpen(false);
+                                        setShowArchived(true);
+                                    }}>
+                                        <Archive className="mr-2 h-4 w-4" /> Archived Chats
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
-                </div>
-            </header>
 
-            {/* Chat List */}
-            <main className="container mx-auto px-0">
-                {showArchived && (
-                    <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Chats
+                    <div className="container mx-auto px-4 pb-4">
+                        {/* Search Input */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Search chats..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
                     </div>
-                )}
+                </header>
 
-                {groups.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <p>No chats yet. Create or join a group to start chatting!</p>
-                    </div>
-                ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
-                    </div>
-                ) : (
-                    <div className="divide-y">
-                        {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
-                            <div
-                                key={group.id}
-                                className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors cursor-pointer group relative"
-                                onClick={() => navigate(`/group/${group.id}`)}
-                            >
-                                {/* Group Avatar */}
-                                <Avatar className="h-14 w-14 flex-shrink-0">
-                                    <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
-                                        {group.name.charAt(0).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
+                {/* Chat List */}
+                <main className="container mx-auto px-0">
+                    {showArchived && (
+                        <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Chats
+                        </div>
+                    )}
 
-                                {/* Group Info */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-1 min-w-0">
-                                            <h3 className="font-semibold text-base truncate">{group.name}</h3>
-                                            {group.is_pinned && <Pin className="h-3 w-3 text-muted-foreground flex-shrink-0 rotate-45" fill="currentColor" />}
-                                        </div>
-                                        {group.lastMessage && (
-                                            <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                                                {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: false })}
-                                            </span>
-                                        )}
-                                    </div>
+                    {groups.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>No chats yet. Create or join a group to start chatting!</p>
+                        </div>
+                    ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y">
+                            {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
+                                <div
+                                    key={group.id}
+                                    className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors cursor-pointer group relative"
+                                    onClick={() => navigate(`/group/${group.id}`)}
+                                >
+                                    {/* Group Avatar */}
+                                    <Avatar className="h-14 w-14 flex-shrink-0">
+                                        <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
+                                            {group.name.charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
 
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm text-muted-foreground truncate">
-                                            {group.lastMessage ? (
-                                                <span>
-                                                    <span className="font-medium">{group.lastMessage.sender_name}:</span>{" "}
-                                                    {group.lastMessage.content}
+                                    {/* Group Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center gap-1 min-w-0">
+                                                <h3 className="font-semibold text-base truncate">{group.name}</h3>
+                                                {group.is_pinned && <Pin className="h-3 w-3 text-muted-foreground flex-shrink-0 rotate-45" fill="currentColor" />}
+                                            </div>
+                                            {group.lastMessage && (
+                                                <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                                                    {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: false })}
                                                 </span>
-                                            ) : (
-                                                group.description || "No messages yet"
                                             )}
-                                        </p>
+                                        </div>
 
-                                        {/* Unread Badge */}
-                                        {group.unreadCount > 0 && (
-                                            <Badge className="ml-2 flex-shrink-0 bg-green-500 hover:bg-green-600 text-white rounded-full h-5 min-w-[20px] px-1.5">
-                                                {group.unreadCount}
-                                            </Badge>
-                                        )}
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm text-muted-foreground truncate">
+                                                {group.lastMessage ? (
+                                                    <span>
+                                                        <span className="font-medium">{group.lastMessage.sender_name}:</span>{" "}
+                                                        {group.lastMessage.content}
+                                                    </span>
+                                                ) : (
+                                                    group.description || "No messages yet"
+                                                )}
+                                            </p>
+
+                                            {/* Unread Badge */}
+                                            {group.unreadCount > 0 && (
+                                                <Badge className="ml-2 flex-shrink-0 bg-green-500 hover:bg-green-600 text-white rounded-full h-5 min-w-[20px] px-1.5">
+                                                    {group.unreadCount}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Action Menu */}
+                                    <div className="absolute right-2 top-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm hover:bg-accent">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
+                                                    {group.is_pinned ? (
+                                                        <>
+                                                            <PinOff className="mr-2 h-4 w-4" /> Unpin Chat
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Pin className="mr-2 h-4 w-4" /> Pin Chat
+                                                        </>
+                                                    )}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
+                                                    {group.is_archived ? (
+                                                        <>
+                                                            <ArchiveRestore className="mr-2 h-4 w-4" /> Unarchive
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Archive className="mr-2 h-4 w-4" /> Archive
+                                                        </>
+                                                    )}
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+                    )}
 
-                                {/* Action Menu */}
-                                <div className="absolute right-2 top-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm hover:bg-accent">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
-                                                {group.is_pinned ? (
-                                                    <>
-                                                        <PinOff className="mr-2 h-4 w-4" /> Unpin Chat
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Pin className="mr-2 h-4 w-4" /> Pin Chat
-                                                    </>
-                                                )}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
-                                                {group.is_archived ? (
-                                                    <>
-                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Unarchive
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Archive className="mr-2 h-4 w-4" /> Archive
-                                                    </>
-                                                )}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                    {/* Archived Chats Button */}
+                    {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
+                        <div className="p-4 border-t mt-auto">
+                            <Button
+                                variant="ghost"
+                                className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowArchived(true)}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Archive className="h-4 w-4" />
+                                    <span>Archived</span>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                                <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
+                            </Button>
+                        </div>
+                    )}
+                </main>
 
-                {/* Archived Chats Button */}
-                {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
-                    <div className="p-4 border-t mt-auto">
-                        <Button
-                            variant="ghost"
-                            className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
-                            onClick={() => setShowArchived(true)}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Archive className="h-4 w-4" />
-                                <span>Archived</span>
-                            </div>
-                            <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
-                        </Button>
-                    </div>
-                )}
-            </main>
+                {/* Contact Selector Dialog */}
+                <ContactSelectorDialog
+                    open={contactSelectorOpen}
+                    onOpenChange={setContactSelectorOpen}
+                    onStartCall={handleStartCall}
+                />
 
-            {/* Contact Selector Dialog */}
-            <ContactSelectorDialog
-                open={contactSelectorOpen}
-                onOpenChange={setContactSelectorOpen}
-                onStartCall={handleStartCall}
-            />
+                {/* Video Call Room */}
+                <VideoCallRoom
+                    open={videoCallOpen}
+                    onOpenChange={setVideoCallOpen}
+                    callId={currentCallId}
+                    participants={currentCallParticipants}
+                />
 
-            {/* Video Call Room */}
-            <VideoCallRoom
-                open={videoCallOpen}
-                onOpenChange={setVideoCallOpen}
-                callId={currentCallId}
-                participants={currentCallParticipants}
-            />
-
-            {/* Create Group Dialog */}
-            <CreateGroupDialog
-                open={createGroupOpen}
-                onOpenChange={setCreateGroupOpen}
-                onGroupCreated={loadGroups}
-            />
+                {/* Create Group Dialog */}
+                <CreateGroupDialog
+                    open={createGroupOpen}
+                    onOpenChange={setCreateGroupOpen}
+                    onGroupCreated={loadGroups}
+                />
+            </div>
+        </div>
         </div>
     );
 }
