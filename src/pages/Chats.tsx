@@ -349,16 +349,15 @@ export default function Chats() {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => {
                                     setDropdownOpen(false);
-                                    // Small delay to let dropdown close before opening dialog
                                     setTimeout(() => setCreateGroupOpen(true), 100);
                                 }}>
                                     <Plus className="mr-2 h-4 w-4" /> New Group
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                     setDropdownOpen(false);
-                                    setTimeout(() => setContactSelectorOpen(true), 100);
+                                    setShowArchived(true);
                                 }}>
-                                    <Video className="mr-2 h-4 w-4" /> Video Call
+                                    <Archive className="mr-2 h-4 w-4" /> Archived Chats
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
