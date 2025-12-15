@@ -112,7 +112,7 @@ export function AppLayout() {
                 <header className="border-b bg-card">
                     <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
                         <div
-                            className="flex items-center gap-3 cursor-pointer group transition-all"
+                            className="flex items-center gap-1.5 cursor-pointer group transition-all"
                             onClick={() => navigate('/dashboard')}
                         >
                             <img
