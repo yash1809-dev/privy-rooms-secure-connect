@@ -118,7 +118,7 @@ export function AppLayout() {
                             <img
                                 src="/favicon.png"
                                 alt="CollegeOS"
-                                className="h-9 w-9 sm:h-10 sm:w-10 object-contain transition-transform group-hover:scale-110"
+                                className="h-12 w-12 sm:h-14 sm:w-14 object-contain transition-transform group-hover:scale-110"
                             />
                             <h1 className="text-xl sm:text-2xl font-bold text-primary group-hover:opacity-80 transition-opacity">
                                 CollegeOS
