@@ -111,22 +111,21 @@ export function AppLayout() {
             {!hideHeader && (
                 <header className="border-b bg-card">
                     <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
-                        <h1
-                            className="text-xl sm:text-2xl font-bold text-primary cursor-pointer hover:opacity-80 transition-opacity"
+                        <div
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => navigate('/dashboard')}
                         >
-                            CollegeOS
-                        </h1>
+                            <img
+                                src="/logo.png"
+                                alt="CollegeOS Logo"
+                                className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                            />
+                            <h1 className="text-xl sm:text-2xl font-bold text-primary">
+                                CollegeOS
+                            </h1>
+                        </div>
 
                         <div className="flex items-center gap-2 sm:gap-3">
-                            {/* Calendar Icon - hidden on mobile */}
-                            {!isMobile && (
-                                <RecordingsCalendar
-                                    selectedDate={selectedRecordingDate}
-                                    onDateSelect={setSelectedRecordingDate}
-                                />
-                            )}
-
                             {/* Instagram-style Message Icon with Badge - hidden on mobile (shown in bottom nav) */}
                             {!isMobile && (
                                 <Button
@@ -182,8 +181,9 @@ export function AppLayout() {
                             </DropdownMenu>
                         </div>
                     </div>
-                </header>
-            )}
+                </header >
+            )
+            }
 
             <main className="flex-1 pb-0 lg:pb-0">
                 <Outlet context={{ selectedRecordingDate }} />
@@ -192,9 +192,11 @@ export function AppLayout() {
             {!hideHeader && <Footer className={isMobile ? "pb-24" : ""} />}
 
             {/* Mobile Bottom Navigation */}
-            {!hideHeader && isMobile && (
-                <MobileBottomNav unreadCount={totalUnreadCount} />
-            )}
-        </div>
+            {
+                !hideHeader && isMobile && (
+                    <MobileBottomNav unreadCount={totalUnreadCount} />
+                )
+            }
+        </div >
     );
 }
