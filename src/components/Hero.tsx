@@ -39,7 +39,7 @@ export const Hero = () => {
             </Button>
           </Link>
           <Link to="/login">
-            <Button size="lg" variant="outline" className="border-white/30 text-primary-foreground hover:bg-white/10 backdrop-blur-sm">
+            <Button size="lg" variant="outline" className="border-white/30 text-gray-900 bg-white/90 hover:bg-white backdrop-blur-sm font-semibold">
               Sign In
             </Button>
           </Link>
