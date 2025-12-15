@@ -18,17 +18,20 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
       setSession(session);
       setLoading(false);
       if (!session) {
-        navigate("/login");
+        navigate("/login", { replace: true });
       }
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
       setSession(session);
-      if (!session) {
-        navigate("/login");
+      setLoading(false);
+
+      if (event === 'SIGNED_OUT' || !session) {
+        navigate("/login", { replace: true });
       }
     });
 
@@ -46,5 +49,10 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
     );
   }
 
-  return session ? <>{children}</> : null;
+  // If no session and not loading, return null (will redirect)
+  if (!session) {
+    return null;
+  }
+
+  return <>{children}</>;
 };

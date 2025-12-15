@@ -99,8 +99,17 @@ export function AppLayout() {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        navigate("/");
+        try {
+            // Sign out from Supabase
+            await supabase.auth.signOut();
+
+            // Force a full page reload to clear all state
+            window.location.href = "/login";
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Even if logout fails, redirect to login
+            window.location.href = "/login";
+        }
     };
 
     // Show header only on dashboard page

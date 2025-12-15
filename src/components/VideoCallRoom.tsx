@@ -134,18 +134,47 @@ export function VideoCallRoom({
     const setupSignaling = async () => {
         if (!callId) return;
 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const channel = supabase.channel(`video_call:${callId}`);
 
         channel
             .on("broadcast", { event: "offer" }, async ({ payload }) => {
-                await handleOffer(payload);
+                // Only handle offers meant for this user
+                if (payload.to === user.id) {
+                    await handleOffer(payload);
+                }
             })
             .on("broadcast", { event: "answer" }, async ({ payload }) => {
-                await handleAnswer(payload);
+                // Only handle answers meant for this user
+                if (payload.to === user.id) {
+                    await handleAnswer(payload);
+                }
             })
             .on("broadcast", { event: "ice_candidate" }, async ({ payload }) => {
-                await handleIceCandidate(payload);
+                // Only handle ICE candidates meant for this user
+                if (payload.to === user.id) {
+                    await handleIceCandidate(payload);
+                }
             })
+            // Subscribe to participant changes in realtime
+            .on(
+                'postgres_changes' as any,
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'video_call_participants',
+                    filter: `call_id=eq.${callId}`,
+                },
+                (payload: any) => {
+                    console.log('Participant updated:', payload);
+                    // Trigger participant list refresh
+                    if (payload.new && payload.new.status === 'joined') {
+                        console.log('New participant joined, refreshing...');
+                    }
+                }
+            )
             .subscribe();
 
         realtimeChannel.current = channel;
@@ -177,16 +206,20 @@ export function VideoCallRoom({
         };
 
         // Handle ICE candidates
-        peerConnection.onicecandidate = (event) => {
+        peerConnection.onicecandidate = async (event) => {
             if (event.candidate && realtimeChannel.current) {
-                realtimeChannel.current.send({
-                    type: "broadcast",
-                    event: "ice_candidate",
-                    payload: {
-                        candidate: event.candidate,
-                        from: participantId,
-                    },
-                });
+                const { data: { user: currentUser } } = await supabase.auth.getUser();
+                if (currentUser) {
+                    realtimeChannel.current.send({
+                        type: "broadcast",
+                        event: "ice_candidate",
+                        payload: {
+                            candidate: event.candidate,
+                            from: currentUser.id,
+                            to: participantId,
+                        },
+                    });
+                }
             }
         };
 
@@ -300,21 +333,38 @@ export function VideoCallRoom({
     const endCall = async () => {
         console.log('Ending call...');
 
-        // Close the dialog immediately (don't wait for DB updates)
-        onOpenChange(false);
+        // Prevent double cleanup
+        if (!localStream && peerConnections.current.size === 0) {
+            console.log('Already cleaned up, just closing dialog');
+            onOpenChange(false);
+            return;
+        }
 
-        // Cleanup resources
+        // Cleanup resources FIRST
         cleanup();
 
-        // Update database in background (don't wait)
+        // Update database in background
         if (callId) {
-            (supabase as any)
-                .from("video_calls")
-                .update({ status: "ended", ended_at: new Date().toISOString() })
-                .eq("id", callId)
-                .then(() => console.log('Call marked as ended in DB'))
-                .catch((err: any) => console.error('Error updating call status:', err));
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    // Mark user as left
+                    await (supabase as any)
+                        .from('video_call_participants')
+                        .update({
+                            status: 'left',
+                            left_at: new Date().toISOString(),
+                        })
+                        .eq('call_id', callId)
+                        .eq('user_id', user.id);
+                }
+            } catch (err) {
+                console.error('Error updating participant status:', err);
+            }
         }
+
+        // Close dialog AFTER cleanup
+        onOpenChange(false);
     };
 
     const cleanup = () => {
@@ -332,14 +382,22 @@ export function VideoCallRoom({
         // Close all peer connections
         peerConnections.current.forEach((pc, participantId) => {
             console.log('Closing peer connection for:', participantId);
-            pc.close();
+            try {
+                pc.close();
+            } catch (e) {
+                console.error('Error closing peer connection:', e);
+            }
         });
         peerConnections.current.clear();
 
         // Unsubscribe from realtime channel
         if (realtimeChannel.current) {
             console.log('Unsubscribing from realtime channel');
-            supabase.removeChannel(realtimeChannel.current);
+            try {
+                supabase.removeChannel(realtimeChannel.current);
+            } catch (e) {
+                console.error('Error removing channel:', e);
+            }
             realtimeChannel.current = null;
         }
 
