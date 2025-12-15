@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query'],
           'ui-vendor': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-dropdown-menu',
@@ -29,14 +30,23 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tabs',
             '@radix-ui/react-tooltip',
             '@radix-ui/react-popover',
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-toast',
+          ],
+          'form-vendor': [
+            'react-hook-form',
+            '@hookform/resolvers',
+            'zod',
           ],
           'supabase': ['@supabase/supabase-js'],
-          'date-utils': ['date-fns'],
+          'utils': ['date-fns', 'clsx', 'tailwind-merge'],
+          'icons': ['lucide-react'],
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 500,
     minify: 'esbuild',
     target: 'es2020',
+    sourcemap: false, // Disable sourcemaps in production for smaller bundles
   },
 }));

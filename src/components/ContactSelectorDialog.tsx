@@ -65,34 +65,31 @@ export function ContactSelectorDialog({
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Get followers (people who follow me)
-            const { data: followers } = await supabase
-                .from("follows")
-                .select("follower_id")
-                .eq("following_id", user.id);
+            // Get all accepted friend requests where user is either sender or receiver
+            const { data: requests, error } = await (supabase as any)
+                .from('friend_requests')
+                .select('sender_id, receiver_id')
+                .eq('status', 'accepted')
+                .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
-            // Get following (people I follow)
-            const { data: following } = await supabase
-                .from("follows")
-                .select("following_id")
-                .eq("follower_id", user.id);
+            if (error) throw error;
 
-            // Combine and deduplicate
-            const contactIds = new Set<string>();
-            followers?.forEach((f) => contactIds.add(f.follower_id));
-            following?.forEach((f) => contactIds.add(f.following_id));
-
-            if (contactIds.size === 0) {
+            if (!requests || requests.length === 0) {
                 setContacts([]);
                 setFilteredContacts([]);
                 return;
             }
 
-            // Fetch profile data
+            // Extract friend IDs (the other person in each connection)
+            const friendIds = requests.map((r: any) =>
+                r.sender_id === user.id ? r.receiver_id : r.sender_id
+            );
+
+            // Fetch profile data for friends
             const { data: profiles } = await supabase
                 .from("profiles")
                 .select("id, username, avatar_url")
-                .in("id", Array.from(contactIds));
+                .in("id", friendIds);
 
             const contactList = (profiles || []) as Contact[];
             setContacts(contactList);
@@ -157,7 +154,7 @@ export function ContactSelectorDialog({
                     ) : filteredContacts.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
                             {contacts.length === 0
-                                ? "No contacts found. Follow someone to start a call!"
+                                ? "No friends yet. Add friends to start a call!"
                                 : "No contacts match your search."}
                         </p>
                     ) : (

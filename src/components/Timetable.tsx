@@ -82,10 +82,10 @@ export default function Timetable() {
         toast.error("Please fill in day, start time, end time, and subject");
         return;
       }
-      
+
       // Combine start and end time into "HH:MM-HH:MM" format
       const timeRange = `${formData.startTime}-${formData.endTime}`;
-      
+
       const lectureData = {
         user_id: user.id,
         day: formData.day,
@@ -178,6 +178,15 @@ export default function Timetable() {
     setDialogOpen(true);
   };
 
+  // Get current day for default tab
+  const getCurrentDay = () => {
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayIndex = today === 0 ? 6 : today - 1; // Convert to our 0-indexed Monday-start week
+    return WEEKDAYS[dayIndex] || "Monday";
+  };
+
+  const [selectedDay, setSelectedDay] = useState(getCurrentDay());
+
   const getLecturesForDay = (day: string) => {
     return lectures.filter((l) => l.day === day).sort((a, b) => a.time.localeCompare(b.time));
   };
@@ -185,14 +194,14 @@ export default function Timetable() {
   return (
     <Card className="mb-8">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <CardTitle>Timetable</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">Timetable</CardTitle>
             <CardDescription>Schedule your lectures and classes</CardDescription>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" onClick={openNewDialog}>
+              <Button size="sm" onClick={openNewDialog} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lecture
               </Button>
@@ -277,58 +286,109 @@ export default function Timetable() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
-          {WEEKDAYS.map((day) => {
-            const dayLectures = getLecturesForDay(day);
-            return (
-              <div key={day} className="border rounded-lg p-4">
-                <h3 className="font-bold text-lg mb-4 pb-2 border-b">{day}</h3>
-                {dayLectures.length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-2">No lectures scheduled</div>
-                ) : (
-                  <div className="flex flex-wrap gap-3 overflow-x-auto pb-2">
-                    {dayLectures.map((lecture) => (
-                      <div
-                        key={lecture.id}
-                        className="p-3 bg-accent/50 rounded border cursor-pointer hover:bg-accent transition-colors min-w-[200px] flex-shrink-0"
-                        onClick={() => openEditDialog(lecture)}
-                      >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {lecture.time.includes("-") ? lecture.time : `${lecture.time}-`}
-                            </span>
-                          </div>
-                          <div className="font-semibold text-sm">{lecture.subject}</div>
-                          {lecture.instructor && (
-                            <div className="text-xs text-muted-foreground">Instructor: {lecture.instructor}</div>
-                          )}
-                          {lecture.location && (
-                            <div className="text-xs text-muted-foreground">Location: {lecture.location}</div>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 self-end mt-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (lecture.id) deleteLecture(lecture.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+        {/* Unified View: Horizontal Day Tabs for Both Mobile & Desktop */}
+        <div>
+          {/* Day Tabs - Horizontal Scrollable */}
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-3 mb-4 border-b scrollbar-hide">
+            {WEEKDAYS.map((day) => {
+              const dayLectures = getLecturesForDay(day);
+              const isSelected = selectedDay === day;
+              const isToday = day === getCurrentDay();
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(day)}
+                  className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${isSelected
+                    ? "bg-primary text-primary-foreground"
+                    : isToday
+                      ? "bg-accent text-accent-foreground border"
+                      : "hover:bg-accent/50"
+                    }`}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{day.slice(0, 3)}</span>
+                    {dayLectures.length > 0 && (
+                      <span className={`text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        {dayLectures.length}
+                      </span>
+                    )}
                   </div>
-                )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected Day's Lectures - Compact Timeline View */}
+          <div className="space-y-2 lg:space-y-3">
+            {getLecturesForDay(selectedDay).length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No lectures scheduled for {selectedDay}</p>
               </div>
-            );
-          })}
+            ) : (
+              getLecturesForDay(selectedDay).map((lecture, index) => (
+                <div
+                  key={lecture.id}
+                  className="flex items-start gap-3 lg:gap-4 p-3 lg:p-4 bg-card border rounded-lg hover:shadow-sm transition-all active:scale-[0.98]"
+                  onClick={() => openEditDialog(lecture)}
+                >
+                  {/* Time Column */}
+                  <div className="flex flex-col items-center justify-center min-w-[60px] lg:min-w-[70px] pt-1">
+                    <div className="text-xs lg:text-sm font-bold text-primary">
+                      {lecture.time.split('-')[0] || lecture.time}
+                    </div>
+                    <div className="text-[10px] lg:text-xs text-muted-foreground">
+                      {lecture.time.split('-')[1] || ''}
+                    </div>
+                  </div>
+
+                  {/* Vertical Line */}
+                  <div className="flex flex-col items-center pt-2">
+                    <div className={`w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full ${index === 0 ? 'bg-primary' : 'bg-muted'}`} />
+                    {index < getLecturesForDay(selectedDay).length - 1 && (
+                      <div className="w-[2px] h-full bg-border mt-1" />
+                    )}
+                  </div>
+
+                  {/* Content Column */}
+                  <div className="flex-1 min-w-0 pb-2">
+                    <div className="font-semibold text-sm lg:text-base mb-1 line-clamp-1">{lecture.subject}</div>
+                    <div className="flex flex-col gap-1 lg:gap-1.5">
+                      {lecture.instructor && (
+                        <div className="flex items-center gap-1.5 text-xs lg:text-sm text-muted-foreground">
+                          <span className="text-[10px] lg:text-xs">👨‍🏫</span>
+                          <span className="line-clamp-1">{lecture.instructor}</span>
+                        </div>
+                      )}
+                      {lecture.location && (
+                        <div className="flex items-center gap-1.5 text-xs lg:text-sm text-muted-foreground">
+                          <span className="text-[10px] lg:text-xs">📍</span>
+                          <span className="line-clamp-1">{lecture.location}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delete Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 lg:h-8 lg:w-8 flex-shrink-0 text-destructive/80 hover:text-destructive transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (lecture.id) deleteLecture(lecture.id);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
-

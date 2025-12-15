@@ -7,10 +7,27 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
+      padding: {
+        DEFAULT: '1rem',
+        sm: '1.5rem',
+        md: '2rem',
+        lg: '3rem',
       },
+      screens: {
+        sm: '481px',
+        md: '769px',
+        lg: '1025px',
+        xl: '1441px',
+        '2xl': '1600px',
+      },
+    },
+    screens: {
+      xs: '480px',    // Small mobile
+      sm: '481px',    // Normal mobile
+      md: '769px',    // Tablet
+      lg: '1025px',   // Desktop
+      xl: '1441px',   // Large desktop
+      '2xl': '1600px',
     },
     extend: {
       colors: {

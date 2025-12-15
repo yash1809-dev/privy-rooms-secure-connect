@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -11,17 +11,25 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus, Video, Phone, MessageSquare } from "lucide-react";
+import { ArrowLeft, Search, MoreVertical, Pin, Archive, PinOff, ArchiveRestore, Plus, Video, Phone, MessageSquare, Trash2, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { ContactSelectorDialog } from "@/components/ContactSelectorDialog";
 import { VideoCallRoom } from "@/components/VideoCallRoom";
+import { ChatsSkeleton } from "@/components/ChatsSkeleton";
+import { useChatsData } from "@/hooks/useChatsData";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChatConversation } from "@/components/ChatConversation";
+import { NotificationBell } from "@/components/NotificationBell";
+import { UserSearchDialog } from "@/components/UserSearchDialog";
+import { useVideoCalls } from "@/hooks/useVideoCalls";
 
 interface Group {
     id: string;
     name: string;
     description: string | null;
+    avatar_url: string | null;
     created_at: string;
     is_pinned?: boolean;
     is_archived?: boolean;
@@ -46,6 +54,15 @@ interface VideoCall {
 
 export default function Chats() {
     const navigate = useNavigate();
+    const { groupId } = useParams<{ groupId: string }>();
+    const queryClient = useQueryClient();
+
+    // Video calling hook
+    const { activeCallId, activeCallParticipants, startCall, setActiveCallId } = useVideoCalls();
+
+    // Use React Query for data caching
+    const { data: cachedData, isLoading: queriesLoading } = useChatsData();
+
     const [groups, setGroups] = useState<GroupWithLastMessage[]>([]);
     const [filteredGroups, setFilteredGroups] = useState<GroupWithLastMessage[]>([]);
     const [loading, setLoading] = useState(true);
@@ -54,11 +71,30 @@ export default function Chats() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [createGroupOpen, setCreateGroupOpen] = useState(false);
     const [contactSelectorOpen, setContactSelectorOpen] = useState(false);
-    const [videoCallOpen, setVideoCallOpen] = useState(false);
-    const [currentCallId, setCurrentCallId] = useState<string | null>(null);
-    const [currentCallParticipants, setCurrentCallParticipants] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState<"chats" | "calls">("chats");
     const [callHistory, setCallHistory] = useState<VideoCall[]>([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
+    const [userSearchOpen, setUserSearchOpen] = useState(false);
+
+    // Detect if mobile
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Load data from React Query cache when available
+    useEffect(() => {
+        if (cachedData?.groups) {
+            setGroups(cachedData.groups);
+            setFilteredGroups(cachedData.groups);
+            setLoading(false);
+        }
+    }, [cachedData]);
 
     useEffect(() => {
         loadGroups();
@@ -66,145 +102,29 @@ export default function Chats() {
     }, []);
 
     const loadGroups = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                navigate("/login");
-                return;
-            }
-
-            // Load groups where user is a member, including pinned/archived status
-            const { data: memberData } = await supabase
-                .from("group_members")
-                .select("group_id, is_pinned, is_archived")
-                .eq("user_id", user.id);
-
-            if (!memberData || memberData.length === 0) {
-                setGroups([]);
-                setLoading(false);
-                return;
-            }
-
-            const groupIds = memberData.map(m => m.group_id);
-            const memberMap = new Map(memberData.map(m => [m.group_id, m]));
-
-            // Load group details
-            const { data: groupsData } = await supabase
-                .from("groups")
-                .select("*")
-                .in("id", groupIds)
-                .order("created_at", { ascending: false });
-
-            if (!groupsData) {
-                setGroups([]);
-                setLoading(false);
-                return;
-            }
-
-            // Load last message and unread count for each group
-            const groupsWithMessages = await Promise.all(
-                groupsData.map(async (group) => {
-                    // Get last message
-                    const { data: lastMsg } = await supabase
-                        .from("group_messages")
-                        .select("content, created_at, sender:profiles(username)")
-                        .eq("group_id", group.id)
-                        .order("created_at", { ascending: false })
-                        .limit(1)
-                        .single();
-
-                    // Get unread count: messages user hasn't sent and hasn't read
-                    const { data: groupMsgs } = await supabase
-                        .from("group_messages")
-                        .select("id")
-                        .eq("group_id", group.id)
-                        .neq("sender_id", user.id);
-
-                    let unreadCount = 0;
-                    if (groupMsgs && groupMsgs.length > 0) {
-                        const messageIds = groupMsgs.map(m => m.id);
-                        const { data: readReceipts } = await (supabase as any)
-                            .from("message_read_receipts")
-                            .select("message_id")
-                            .in("message_id", messageIds)
-                            .eq("user_id", user.id);
-
-                        const readMessageIds = new Set((readReceipts || []).map((r: any) => r.message_id));
-                        unreadCount = groupMsgs.filter(m => !readMessageIds.has(m.id)).length;
-                    }
-
-                    const memberInfo = memberMap.get(group.id);
-
-                    return {
-                        ...group,
-                        is_pinned: memberInfo?.is_pinned || false,
-                        is_archived: memberInfo?.is_archived || false,
-                        lastMessage: lastMsg ? {
-                            content: lastMsg.content,
-                            created_at: lastMsg.created_at,
-                            sender_name: (lastMsg.sender as any)?.username || "Unknown"
-                        } : undefined,
-                        unreadCount: Math.min(unreadCount, 99)
-                    };
-                })
-            );
-
-            // Sort: Pinned first, then by date
-            const sortedGroups = groupsWithMessages.sort((a, b) => {
-                if (a.is_pinned && !b.is_pinned) return -1;
-                if (!a.is_pinned && b.is_pinned) return 1;
-                // If both pinned or both not pinned, sort by last message or creation date
-                const dateA = new Date(a.lastMessage?.created_at || a.created_at).getTime();
-                const dateB = new Date(b.lastMessage?.created_at || b.created_at).getTime();
-                return dateB - dateA;
-            });
-
-            setGroups(sortedGroups);
-            setFilteredGroups(sortedGroups);
-        } catch (error) {
-            console.error("Failed to load groups:", error);
-        } finally {
-            setLoading(false);
-        }
+        // Invalidate cache and let React Query refetch
+        await queryClient.invalidateQueries({ queryKey: ['chats'] });
+        await queryClient.refetchQueries({ queryKey: ['chats'] });
     };
 
     const handleStartCall = async (selectedContactIds: string[]) => {
+        console.log('handleStartCall called with:', selectedContactIds);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            // Create video call
-            const { data: call, error: callError } = await supabase
-                .from("video_calls")
-                .insert({ creator_id: user.id, status: "active" })
-                .select()
-                .single();
-
-            if (callError) throw callError;
-
-            // Add participants
-            const participants = [user.id, ...selectedContactIds];
-            const participantsData = participants.map(id => ({
-                call_id: call.id,
-                user_id: id,
-            }));
-
-            const { error: participantError } = await supabase
-                .from("call_participants")
-                .insert(participantsData);
-
-            if (participantError) throw participantError;
-
-            // Open video call room
-            setCurrentCallId(call.id);
-            setCurrentCallParticipants(participants);
-            setVideoCallOpen(true);
-
-            toast.success("Video call started!");
+            console.log('Calling startCall.mutateAsync...');
+            await startCall.mutateAsync({
+                participantIds: selectedContactIds,
+                callType: selectedContactIds.length === 1 ? 'one-on-one' : 'group',
+            });
+            console.log('startCall.mutateAsync completed successfully');
         } catch (error: any) {
-            toast.error("Failed to start call: " + (error.message || "Unknown error"));
-            console.error(error);
+            console.error("handleStartCall error:", error);
+            toast.error("Error: " + (error?.message || JSON.stringify(error)));
         }
+    };
+
+    const handleJoinVideoCall = (callId: string) => {
+        console.log('handleJoinVideoCall called with callId:', callId);
+        setActiveCallId(callId);
     };
 
     const loadCallHistory = async () => {
@@ -252,7 +172,7 @@ export default function Chats() {
 
             const { error } = await supabase
                 .from("group_members")
-                .update({ is_pinned: !currentStatus })
+                .update({ is_pinned: !currentStatus } as any)
                 .eq("group_id", groupId)
                 .eq("user_id", user.id);
 
@@ -285,7 +205,7 @@ export default function Chats() {
 
             const { error } = await supabase
                 .from("group_members")
-                .update({ is_archived: !currentStatus })
+                .update({ is_archived: !currentStatus } as any)
                 .eq("group_id", groupId)
                 .eq("user_id", user.id);
 
@@ -299,7 +219,52 @@ export default function Chats() {
 
             toast.success(currentStatus ? "Chat unarchived" : "Chat archived");
         } catch (error) {
-            toast.error("Failed to update archive status");
+            console.error("Failed to toggle archive:", error);
+            toast.error("Failed to update chat");
+        }
+    };
+
+    const deleteGroup = (groupId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setGroupToDelete(groupId);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!groupToDelete) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Delete group membership
+            const { error: memberError } = await supabase
+                .from("group_members")
+                .delete()
+                .eq("group_id", groupToDelete)
+                .eq("user_id", user.id);
+
+            if (memberError) throw memberError;
+
+            // Remove from local state
+            setGroups(prev => prev.filter(g => g.id !== groupToDelete));
+
+            // Invalidate and refetch the chats data
+            queryClient.invalidateQueries({ queryKey: ['chats'] });
+
+            // If we're viewing this chat, navigate back to chat list
+            if (groupId === groupToDelete) {
+                navigate('/chats', { replace: true });
+            }
+
+            toast.success("Chat deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete chat:", error);
+            toast.error("Failed to delete chat");
+        } finally {
+            setShowDeleteConfirm(false);
+            setGroupToDelete(null);
         }
     };
 
@@ -319,56 +284,85 @@ export default function Chats() {
         setFilteredGroups(filtered);
     }, [searchQuery, groups]);
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+    const handleChatClick = (chatGroupId: string) => {
+        if (isMobile) {
+            // On mobile, navigate to full-screen chat
+            navigate(`/chats/${chatGroupId}`);
+        } else {
+            // On desktop, update URL for deep linking but stay in two-pane view
+            navigate(`/chats/${chatGroupId}`, { replace: true });
+        }
+    };
+
+    const handleBackToList = () => {
+        navigate('/chats', { replace: true });
+    };
+
+    if (loading && groups.length === 0) {
+        return <ChatsSkeleton />;
     }
 
-    return (
-        <div className="min-h-screen bg-background flex">
-            {/* Left Sidebar - Desktop only */}
-            <aside className="hidden lg:flex flex-col w-20 border-r bg-card">
-                {/* Chats Tab */}
+    // Mobile: Show either chat list or conversation, not both
+    if (isMobile && groupId) {
+        return <ChatConversation groupId={groupId} onBack={handleBackToList} isMobile={true} />;
+    }
+
+    const chatListSidebar = (
+        <aside className={`flex flex-col h-screen ${isMobile ? 'w-full' : 'w-[380px]'} bg-background overflow-hidden`}>
+            {/* Mobile Tabs - shown only on mobile */}
+            <div className="lg:hidden flex border-b bg-card">
                 <button
-                    className={`flex flex-col items-center justify-center py-6 gap-2 transition-colors relative ${activeTab === "chats" ? "bg-accent" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
                         }`}
                     onClick={() => setActiveTab("chats")}
                 >
-                    <MessageSquare className="h-6 w-6" />
-                    <span className="text-xs">Chats</span>
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="text-sm font-medium">Chats</span>
                     {filteredGroups.filter(g => !g.is_archived).reduce((sum, g) => sum + g.unreadCount, 0) > 0 && (
-                        <Badge className="absolute top-2 right-2 h-5 min-w-[20px] px-1 bg-red-500 text-white text-xs">
-                            {Math.min(99, filteredGroups.filter(g => !g.is_archived).reduce((sum, g) => sum + g.unreadCount, 0))}
-                        </Badge>
+                        <span className="h-2.5 w-2.5 bg-red-500 rounded-full" />
                     )}
                 </button>
-
-                {/* Calls Tab */}
                 <button
-                    className={`flex flex-col items-center justify-center py-6 gap-2 transition-colors ${activeTab === "calls" ? "bg-accent" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
                         }`}
                     onClick={() => setActiveTab("calls")}
                 >
-                    <Phone className="h-6 w-6" />
-                    <span className="text-xs">Calls</span>
+                    <Phone className="h-5 w-5" />
+                    <span className="text-sm font-medium">Calls</span>
                 </button>
-            </aside>
+            </div>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col">
-                {/* Header */}
-                <header className="sticky top-0 z-10 bg-card border-b">
-                    <div className="container mx-auto px-4 py-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-4">
-                                <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+            {/* Header */}
+            <header className="bg-card border-b">
+                <div className="px-3 sm:px-4 py-3 sm:py-4">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                            {!isMobile && (
+                                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard")}>
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
-                                <h1 className="text-2xl font-bold">Chats</h1>
-                            </div>
+                            )}
+                            <h1 className="text-xl sm:text-2xl font-bold">Chats</h1>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Desktop: Search Icon */}
+                            {!isMobile && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="rounded-full"
+                                    onClick={() => setUserSearchOpen(true)}
+                                >
+                                    <UserPlus className="h-5 w-5" />
+                                </Button>
+                            )}
+
+                            {/* Desktop: Notification Bell */}
+                            {!isMobile && <NotificationBell onJoinCall={handleJoinVideoCall} />}
+
+                            {/* Mobile: Notification Bell (outside dropdown) */}
+                            {isMobile && <NotificationBell onJoinCall={handleJoinVideoCall} />}
 
                             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
@@ -383,6 +377,15 @@ export default function Chats() {
                                     }}>
                                         <Plus className="mr-2 h-4 w-4" /> New Group
                                     </DropdownMenuItem>
+                                    {/* Mobile: Add Friends Option */}
+                                    {isMobile && (
+                                        <DropdownMenuItem onClick={() => {
+                                            setDropdownOpen(false);
+                                            setUserSearchOpen(true);
+                                        }}>
+                                            <UserPlus className="mr-2 h-4 w-4" /> Add Friends
+                                        </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onClick={() => {
                                         setDropdownOpen(false);
                                         setShowArchived(true);
@@ -393,205 +396,331 @@ export default function Chats() {
                             </DropdownMenu>
                         </div>
                     </div>
+                </div>
 
-                    <div className="container mx-auto px-4 pb-4">
-                        {/* Search Input */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search chats..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                    {/* Search Input */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Search chats..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-10"
+                        />
                     </div>
-                </header>
+                </div>
+            </header>
 
-                {/* Chat List */}
-                {activeTab === "chats" && (
-                    <main className="container mx-auto px-0">
-                        {showArchived && (
-                            <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to Chats
-                            </div>
-                        )}
+            {/* Desktop Tabs - always visible on desktop, hidden on mobile */}
+            <div className="hidden lg:flex border-b bg-card">
+                <button
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                        }`}
+                    onClick={() => setActiveTab("chats")}
+                >
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="text-sm font-medium">Chats</span>
+                    {filteredGroups.filter(g => !g.is_archived).reduce((sum, g) => sum + g.unreadCount, 0) > 0 && (
+                        <span className="h-2.5 w-2.5 bg-red-500 rounded-full" />
+                    )}
+                </button>
+                <button
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                        }`}
+                    onClick={() => setActiveTab("calls")}
+                >
+                    <Phone className="h-5 w-5" />
+                    <span className="text-sm font-medium">Calls</span>
+                </button>
+            </div>
 
-                        {groups.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <p>No chats yet. Create or join a group to start chatting!</p>
-                            </div>
-                        ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col">
-                                {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
-                                    <div
-                                        key={group.id}
-                                        className="flex items-center gap-4 p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors relative"
-                                        onClick={() => navigate(`/group/${group.id}`)}
-                                    >
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={`https://api.dicebear.com/7.x/shapes/svg?seed=${group.id}`} />
-                                            <AvatarFallback>{group.name[0]?.toUpperCase()}</AvatarFallback>
-                                        </Avatar>
+            {/* Chat List */}
+            {activeTab === "chats" && (
+                <main className="flex-1 overflow-y-auto">
+                    {showArchived && (
+                        <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Chats
+                        </div>
+                    )}
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="font-semibold truncate">{group.name}</h3>
-                                                {group.is_pinned && <Pin className="h-3 w-3 text-primary fill-current" />}
-                                                {group.is_archived && <Archive className="h-3 w-3 text-muted-foreground" />}
-                                            </div>
-                                            {group.lastMessage && (
-                                                <p className="text-sm text-muted-foreground truncate">
-                                                    <span className="font-medium">{group.lastMessage.sender_name}:</span> {group.lastMessage.content}
-                                                </p>
-                                            )}
+                    {groups.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>No chats yet. Create or join a group to start chatting!</p>
+                        </div>
+                    ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col">
+                            {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
+                                <div
+                                    key={group.id}
+                                    className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors relative ${groupId === group.id ? 'bg-accent' : ''}`}
+                                    onClick={() => handleChatClick(group.id)}
+                                    onMouseEnter={() => {
+                                        // Prefetch messages on hover for instant switching
+                                        queryClient.prefetchQuery({
+                                            queryKey: ['messages', group.id],
+                                            queryFn: async () => {
+                                                const { data, error } = await supabase
+                                                    .from("group_messages")
+                                                    .select("*, sender:profiles(id,username,email,avatar_url)")
+                                                    .eq("group_id", group.id)
+                                                    .order("created_at", { ascending: true });
+                                                if (error) throw error;
+                                                return data;
+                                            },
+                                            staleTime: 5 * 60 * 1000,
+                                        });
+                                    }}
+                                >
+                                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 border border-border/50">
+                                        <AvatarImage src={group.avatar_url || `https://api.dicebear.com/7.x/shapes/svg?seed=${group.id}`} className="object-cover" />
+                                        <AvatarFallback>{group.name[0]?.toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                            <h3 className="font-semibold truncate text-sm sm:text-base">{group.name}</h3>
+                                            {group.is_pinned && <Pin className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
+                                            {group.is_archived && <Archive className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
                                         </div>
+                                        {group.lastMessage && (
+                                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                                <span className="font-medium">{group.lastMessage.sender_name}:</span> {group.lastMessage.content}
+                                            </p>
+                                        )}
+                                    </div>
 
-                                        <div className="flex flex-col items-end gap-2">
-                                            {group.lastMessage && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: true })}
-                                                </span>
-                                            )}
-                                            {group.unreadCount > 0 && (
-                                                <Badge className="bg-primary text-primary-foreground">
-                                                    {group.unreadCount > 99 ? '99+' : group.unreadCount}
-                                                </Badge>
-                                            )}
+                                    <div className="flex flex-col items-end gap-1 sm:gap-2 flex-shrink-0">
+                                        {group.lastMessage && (
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                                                {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: true })}
+                                            </span>
+                                        )}
+                                        {group.unreadCount > 0 && (
+                                            <span className="h-2.5 w-2.5 bg-primary rounded-full" />
+                                        )}
 
+                                        <div onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
-                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
+                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenuItem onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
                                                         {group.is_pinned ? (
-                                                            <><PinOff className="mr-2 h-4 w-4" /> Unpin</>
+                                                            <><PinOff className="h-4 w-4 mr-2" /> Unpin</>
                                                         ) : (
-                                                            <><Pin className="mr-2 h-4 w-4" /> Pin</>
+                                                            <><Pin className="h-4 w-4 mr-2" /> Pin</>
                                                         )}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
                                                         {group.is_archived ? (
-                                                            <><ArchiveRestore className="mr-2 h-4 w-4" /> Unarchive</>
+                                                            <><ArchiveRestore className="h-4 w-4 mr-2" /> Unarchive</>
                                                         ) : (
-                                                            <><Archive className="mr-2 h-4 w-4" /> Archive</>
+                                                            <><Archive className="h-4 w-4 mr-2" /> Archive</>
                                                         )}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={(e) => deleteGroup(group.id, e)}
+                                                        className="text-red-600 focus:text-red-600"
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete Chat
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Archived Chats Button */}
+                    {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
+                        <div className="p-4 border-t mt-auto">
+                            <Button
+                                variant="ghost"
+                                className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowArchived(true)}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Archive className="h-4 w-4" />
+                                    <span>Archived</span>
+                                </div>
+                                <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
+                            </Button>
+                        </div>
+                    )}
+                </main>
+            )}
+
+            {/* Call History */}
+            {activeTab === "calls" && (
+                <main className="flex-1 overflow-y-auto px-4 py-6">
+                    {/* Start Call Button */}
+                    <div className="mb-6">
+                        <Button
+                            className="w-full"
+                            size="lg"
+                            onClick={() => setContactSelectorOpen(true)}
+                        >
+                            <Video className="mr-2 h-5 w-5" />
+                            Start Video Call
+                        </Button>
+                    </div>
+
+                    {/* Call History List */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-4">Recent Calls</h3>
+                        {callHistory.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                <p>No call history yet</p>
+                                <p className="text-sm mt-2">Start your first video call!</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {callHistory.map((call) => (
+                                    <div
+                                        key={call.id}
+                                        className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-primary/10 rounded-full">
+                                                    <Video className="h-5 w-5 text-primary" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {call.participants.length} participant{call.participants.length !== 1 ? 's' : ''}
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Badge variant={call.status === "active" ? "default" : "secondary"}>
+                                                {call.status}
+                                            </Badge>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}
+                    </div>
+                </main>
+            )}
+        </aside>
+    );
 
-                        {/* Archived Chats Button */}
-                        {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
-                            <div className="p-4 border-t mt-auto">
-                                <Button
-                                    variant="ghost"
-                                    className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
-                                    onClick={() => setShowArchived(true)}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Archive className="h-4 w-4" />
-                                        <span>Archived</span>
-                                    </div>
-                                    <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
-                                </Button>
-                            </div>
-                        )}
-                    </main>
+    // Desktop: Two-pane layout
+    return (
+        <div className="min-h-screen bg-background flex">
+            {/* Chat List Sidebar */}
+            {chatListSidebar}
+
+            {/* Right Panel: Active Conversation or Empty State */}
+            <div className="hidden lg:flex h-screen flex-1 flex-col bg-background">
+                {groupId ? (
+                    <ChatConversation
+                        groupId={groupId}
+                        isMobile={false}
+                        initialGroupData={(() => {
+                            const selectedGroup = groups.find(g => g.id === groupId);
+                            return selectedGroup ? {
+                                name: selectedGroup.name,
+                                avatar_url: selectedGroup.avatar_url
+                            } : undefined;
+                        })()}
+                    />
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center">
+                        <MessageSquare className="h-20 w-20 mx-auto mb-4 text-muted-foreground/50" />
+                        <h3 className="text-xl font-semibold mb-2">Select a chat to start messaging</h3>
+                        <p className="text-muted-foreground">Choose a conversation from the list on the left</p>
+                    </div>
                 )}
+            </div>
 
-                {/* Call History */}
-                {activeTab === "calls" && (
-                    <main className="container mx-auto px-4 py-6">
-                        {/* Start Call Button */}
-                        <div className="mb-6">
+            {/* Contact Selector Dialog */}
+            <ContactSelectorDialog
+                open={contactSelectorOpen}
+                onOpenChange={setContactSelectorOpen}
+                onStartCall={handleStartCall}
+            />
+
+            {/* Video Call Room */}
+            <VideoCallRoom
+                open={!!activeCallId}
+                onOpenChange={(open) => !open && setActiveCallId(null)}
+                callId={activeCallId}
+                participants={activeCallParticipants}
+            />
+
+            {/* Create Group Dialog */}
+            <CreateGroupDialog
+                open={createGroupOpen}
+                onOpenChange={setCreateGroupOpen}
+                onGroupCreated={loadGroups}
+            />
+
+            {/* User Search Dialog */}
+            <UserSearchDialog
+                open={userSearchOpen}
+                onOpenChange={setUserSearchOpen}
+            />
+
+            {/* Simple Custom Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setGroupToDelete(null);
+                    }}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/80" />
+
+                    {/* Modal */}
+                    <div
+                        className="relative bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-lg font-semibold mb-2">Delete Chat</h2>
+                        <p className="text-sm text-muted-foreground mb-6">
+                            Are you sure you want to delete this chat? This action cannot be undone and you will lose access to all messages in this chat.
+                        </p>
+
+                        <div className="flex justify-end gap-2">
                             <Button
-                                className="w-full"
-                                size="lg"
-                                onClick={() => setContactSelectorOpen(true)}
+                                variant="outline"
+                                onClick={() => {
+                                    setShowDeleteConfirm(false);
+                                    setGroupToDelete(null);
+                                }}
+                                className="focus:ring-0 focus:outline-none"
                             >
-                                <Video className="mr-2 h-5 w-5" />
-                                Start Video Call
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={confirmDelete}
+                                className="bg-red-600 hover:bg-red-700 text-white focus:ring-0 focus:outline-none"
+                            >
+                                Delete
                             </Button>
                         </div>
-
-                        {/* Call History List */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Recent Calls</h3>
-                            {callHistory.length === 0 ? (
-                                <div className="text-center py-12 text-muted-foreground">
-                                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                    <p>No call history yet</p>
-                                    <p className="text-sm mt-2">Start your first video call!</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {callHistory.map((call) => (
-                                        <div
-                                            key={call.id}
-                                            className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-primary/10 rounded-full">
-                                                        <Video className="h-5 w-5 text-primary" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium">
-                                                            {call.participants.length} participant{call.participants.length !== 1 ? 's' : ''}
-                                                        </p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <Badge variant={call.status === "active" ? "default" : "secondary"}>
-                                                    {call.status}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </main>
-                )}
-
-                {/* Contact Selector Dialog */}
-                <ContactSelectorDialog
-                    open={contactSelectorOpen}
-                    onOpenChange={setContactSelectorOpen}
-                    onStartCall={handleStartCall}
-                />
-
-                {/* Video Call Room */}
-                <VideoCallRoom
-                    open={videoCallOpen}
-                    onOpenChange={setVideoCallOpen}
-                    callId={currentCallId}
-                    participants={currentCallParticipants}
-                />
-
-                {/* Create Group Dialog */}
-                <CreateGroupDialog
-                    open={createGroupOpen}
-                    onOpenChange={setCreateGroupOpen}
-                    onGroupCreated={loadGroups}
-                />
-            </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

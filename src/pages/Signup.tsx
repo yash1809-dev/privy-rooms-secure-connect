@@ -78,7 +78,7 @@ export default function Signup() {
 
       if (data.user) {
         toast.success("Account created successfully!", {
-          description: "Welcome to PrivyRooms"
+          description: "Welcome to CollegeOS"
         });
         navigate("/dashboard");
       }
@@ -98,7 +98,7 @@ export default function Signup() {
           </div>
           <CardTitle className="text-3xl">Create Account</CardTitle>
           <CardDescription>
-            Join PrivyRooms for secure collaboration
+            Join CollegeOS for secure collaboration
           </CardDescription>
         </CardHeader>
         <CardContent>

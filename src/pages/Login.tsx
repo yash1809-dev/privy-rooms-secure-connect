@@ -47,7 +47,7 @@ export default function Login() {
           </div>
           <CardTitle className="text-3xl">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to your PrivyRooms account
+            Sign in to your CollegeOS account
           </CardDescription>
         </CardHeader>
         <CardContent>

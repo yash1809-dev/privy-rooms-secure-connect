@@ -1,34 +1,34 @@
-import { Coffee } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
+import { DonationDialog } from "./DonationDialog";
 
-export const Footer = () => {
-  const handleDonate = () => {
-    // Prefer a Buy Me a Coffee (or any support) link via env var; fallback to UPI
-    const coffee = import.meta.env.VITE_COFFEE_URL as string | undefined;
-    const upiFallback = "upi://pay?pa=yourupi@upi&pn=PrivyRooms&am=100&cu=INR";
-    const href = coffee && coffee.trim().length > 0 ? coffee : upiFallback;
-    window.open(href, "_blank");
-  };
+export function Footer() {
+  const [donationOpen, setDonationOpen] = useState(false);
 
   return (
-    <footer className="bg-card border-t border-border py-8">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-muted-foreground">
-            © 2025 PrivyRooms. Secure collaboration for everyone.
+    <>
+      <footer className="border-t py-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              © 2025 CollegeOS. Secure collaboration for everyone.
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDonationOpen(true)}
+              className="gap-2"
+            >
+              <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+              Support Us
+            </Button>
           </div>
-          
-          <Button
-            onClick={handleDonate}
-            variant="outline"
-            size="sm"
-            className="gap-2 hover:bg-accent hover:text-accent-foreground transition-[var(--transition-smooth)]"
-          >
-            <Coffee className="h-4 w-4" />
-            Buy Me a Coffee
-          </Button>
         </div>
-      </div>
-    </footer>
+      </footer>
+
+      <DonationDialog open={donationOpen} onOpenChange={setDonationOpen} />
+    </>
   );
 };

@@ -17,7 +17,15 @@ import {
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import * as bcrypt from "bcryptjs";
+// Simple hash function to replace bcryptjs
+// Note: In production, password hashing should be done server-side
+const simpleHash = async (password: string) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
 
 interface CreateGroupDialogProps {
   open?: boolean;
@@ -48,7 +56,7 @@ export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controll
 
       let passwordHash = null;
       if (isPasswordProtected && password) {
-        passwordHash = await bcrypt.hash(password, 10);
+        passwordHash = await simpleHash(password);
       }
 
       const { data, error } = await supabase

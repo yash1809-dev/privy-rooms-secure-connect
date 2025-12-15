@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Edit2, Link as LinkIcon, ArrowLeft } from "lucide-react";
+import { ProfileSkeleton } from "@/components/ProfileSkeleton";
+import { useProfileData } from "@/hooks/useProfileData";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ProfileRow {
   id: string;
@@ -24,17 +27,37 @@ interface ProfileRow {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Use React Query for data caching
+  const { data: cachedData, isLoading: queryLoading } = useProfileData();
+
   const [me, setMe] = useState<ProfileRow | null>(null);
   const [followers, setFollowers] = useState<ProfileRow[]>([]);
   const [following, setFollowing] = useState<ProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
+  // Load data from React Query cache when available
+  useEffect(() => {
+    if (cachedData) {
+      setMe(cachedData.me as any);
+      setFollowers(cachedData.followers as any);
+      setFollowing(cachedData.following as any);
+      setLoading(false);
+    }
+  }, [cachedData]);
+
   useEffect(() => {
     load();
   }, []);
 
   const load = async () => {
+    // If we have cached data, use it and skip loading state
+    if (cachedData?.me) {
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -97,45 +120,49 @@ export default function Profile() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (loading && !me) {
+    return <ProfileSkeleton />;
   }
 
   return (
     <div className="min-h-screen bg-[var(--gradient-subtle)]">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 max-w-3xl">
+        {/* Back Button */}
+        <div className="mb-4">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+
         <Card className="mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Profile</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl">Profile</CardTitle>
                 <CardDescription>Your public information</CardDescription>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setEditDialogOpen(true)}
-                className="rounded-full"
+                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
               >
-                <Edit2 className="h-5 w-5" />
+                <Edit2 className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="flex items-start gap-4">
-            <Avatar className="h-20 w-20 flex-shrink-0">
+          <CardContent className="flex flex-col sm:flex-row items-start gap-4">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
               <AvatarImage
                 src={me?.avatar_url || undefined}
                 className="object-cover"
               />
-              <AvatarFallback className="text-2xl">{me?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-xl sm:text-2xl">{me?.username?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-lg mb-1">{me?.username}</div>
-              <div className="text-sm text-muted-foreground mb-2">{me?.email}</div>
+              <div className="font-semibold text-base sm:text-lg mb-1">{me?.username}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground mb-2">{me?.email}</div>
               {me?.bio && (
                 <p className="text-sm mb-2 whitespace-pre-wrap">{me.bio}</p>
               )}
@@ -162,10 +189,10 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="followers">
-          <TabsList>
-            <TabsTrigger value="followers">Followers ({followers.length})</TabsTrigger>
-            <TabsTrigger value="following">Following ({following.length})</TabsTrigger>
+        <Tabs defaultValue="followers" className="mt-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="followers" className="text-sm sm:text-base">Followers ({followers.length})</TabsTrigger>
+            <TabsTrigger value="following" className="text-sm sm:text-base">Following ({following.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="followers" className="space-y-2 mt-4">
             {followers.length === 0 && (
@@ -178,12 +205,12 @@ export default function Profile() {
                     <AvatarImage src={p.avatar_url || undefined} />
                     <AvatarFallback>{p.username.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <div>
-                    <div className="text-sm font-medium">{p.username}</div>
-                    <div className="text-xs text-muted-foreground">{p.email}</div>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-medium truncate">{p.username}</div>
+                    <div className="text-xs text-muted-foreground truncate">{p.email}</div>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => handleFollowToggle(p.id, following.some(f => f.id === p.id))}>
+                <Button size="sm" variant="outline" className="text-xs sm:text-sm flex-shrink-0" onClick={() => handleFollowToggle(p.id, following.some(f => f.id === p.id))}>
                   {following.some(f => f.id === p.id) ? "Unfollow" : "Follow"}
                 </Button>
               </div>
@@ -194,29 +221,22 @@ export default function Profile() {
               <div className="text-sm text-muted-foreground">You aren't following anyone yet.</div>
             )}
             {following.map((p) => (
-              <div key={p.id} className="flex items-center justify-between p-3 border rounded">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
+              <div key={p.id} className="flex items-center justify-between p-2 sm:p-3 border rounded">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <Avatar className="h-8 w-8 flex-shrink-0">
                     <AvatarImage src={p.avatar_url || undefined} />
                     <AvatarFallback>{p.username.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <div>
-                    <div className="text-sm font-medium">{p.username}</div>
-                    <div className="text-xs text-muted-foreground">{p.email}</div>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-medium truncate">{p.username}</div>
+                    <div className="text-xs text-muted-foreground truncate">{p.email}</div>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => handleFollowToggle(p.id, true)}>Unfollow</Button>
+                <Button size="sm" variant="outline" className="text-xs sm:text-sm flex-shrink-0" onClick={() => handleFollowToggle(p.id, true)}>Unfollow</Button>
               </div>
             ))}
           </TabsContent>
         </Tabs>
-
-        <div className="mt-6">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
 
         <EditProfileDialog
           open={editDialogOpen}

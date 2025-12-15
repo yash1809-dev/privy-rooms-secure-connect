@@ -38,25 +38,61 @@ export function VideoCallRoom({
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
     const realtimeChannel = useRef<any>(null);
+    const initializedRef = useRef(false);
 
+    // Initialize call once when opened
     useEffect(() => {
-        if (open && callId) {
+        console.log('VideoCallRoom effect - open:', open, 'callId:', callId);
+        if (open && callId && !initializedRef.current) {
+            initializedRef.current = true;
             initializeCall();
         }
 
-        return () => {
+        if (!open) {
+            initializedRef.current = false;
             cleanup();
+        }
+
+        return () => {
+            if (!open) {
+                cleanup();
+            }
         };
     }, [open, callId]);
 
+    // Handle new participants joining
+    useEffect(() => {
+        if (!open || !callId || !localStream) return;
+
+        console.log('Checking for new participants:', participants);
+
+        // Create connections for any new participants
+        const createNewConnections = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            for (const participantId of participants) {
+                if (participantId !== user.id && !peerConnections.current.has(participantId)) {
+                    console.log('Creating connection for new participant:', participantId);
+                    await createPeerConnection(participantId, localStream);
+                }
+            }
+        };
+
+        createNewConnections();
+    }, [participants, open, callId, localStream]);
+
     const initializeCall = async () => {
         try {
+            console.log('Initializing call...');
+
             // Get local media stream
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true,
             });
 
+            console.log('Got local media stream');
             setLocalStream(stream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
@@ -68,16 +104,10 @@ export function VideoCallRoom({
             // Set up Supabase Realtime for signaling
             await setupSignaling();
 
-            // Create peer connections for each participant
-            for (const participantId of participants) {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user && participantId !== user.id) {
-                    await createPeerConnection(participantId, stream);
-                }
-            }
         } catch (error: any) {
+            console.error('Failed to initialize call:', error);
             toast.error("Failed to access camera/microphone: " + error.message);
-            console.error(error);
+            initializedRef.current = false;
         }
     };
 
@@ -268,36 +298,53 @@ export function VideoCallRoom({
     };
 
     const endCall = async () => {
-        cleanup();
+        console.log('Ending call...');
+
+        // Close the dialog immediately (don't wait for DB updates)
         onOpenChange(false);
 
-        // Update call status in database
+        // Cleanup resources
+        cleanup();
+
+        // Update database in background (don't wait)
         if (callId) {
-            await supabase
+            (supabase as any)
                 .from("video_calls")
                 .update({ status: "ended", ended_at: new Date().toISOString() })
-                .eq("id", callId);
+                .eq("id", callId)
+                .then(() => console.log('Call marked as ended in DB'))
+                .catch((err: any) => console.error('Error updating call status:', err));
         }
     };
 
     const cleanup = () => {
+        console.log('Cleaning up video call...');
+
         // Stop local stream
         if (localStream) {
-            localStream.getTracks().forEach((track) => track.stop());
+            localStream.getTracks().forEach((track) => {
+                track.stop();
+                console.log('Stopped track:', track.kind);
+            });
             setLocalStream(null);
         }
 
         // Close all peer connections
-        peerConnections.current.forEach((pc) => pc.close());
+        peerConnections.current.forEach((pc, participantId) => {
+            console.log('Closing peer connection for:', participantId);
+            pc.close();
+        });
         peerConnections.current.clear();
 
         // Unsubscribe from realtime channel
         if (realtimeChannel.current) {
-            realtimeChannel.current.unsubscribe();
+            console.log('Unsubscribing from realtime channel');
+            supabase.removeChannel(realtimeChannel.current);
             realtimeChannel.current = null;
         }
 
         setRemoteStreams(new Map());
+        console.log('Cleanup complete');
     };
 
     return (
