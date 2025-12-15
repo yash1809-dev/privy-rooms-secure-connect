@@ -115,11 +115,13 @@ export function AppLayout() {
                             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => navigate('/dashboard')}
                         >
-                            <img
-                                src="/logo.png"
-                                alt="CollegeOS Logo"
-                                className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
-                            />
+                            <div className="rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 p-1.5 shadow-md">
+                                <img
+                                    src="/favicon.png"
+                                    alt="CollegeOS"
+                                    className="h-7 w-7 sm:h-8 sm:w-8 object-contain"
+                                />
+                            </div>
                             <h1 className="text-xl sm:text-2xl font-bold text-primary">
                                 CollegeOS
                             </h1>
