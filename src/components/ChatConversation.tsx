@@ -407,7 +407,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
             setPollOptions(["", ""]);
             setAllowMultipleVotes(false);
             setPollDialogOpen(false);
-            toast.success("Poll created!");
+            // Poll created silently
         } catch (error) {
             toast.error("Failed to create poll");
         }
@@ -417,7 +417,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         try {
             await supabase.from("group_members").insert({ group_id: groupId, user_id: userId });
             loadMembers();
-            toast.success("Member added!");
+            // Member added silently
         } catch (error) {
             toast.error("Failed to add member");
         }
@@ -427,7 +427,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         try {
             await supabase.from("group_members").delete().eq("group_id", groupId).eq("user_id", userId);
             loadMembers();
-            toast.success("Member removed!");
+            // Member removed silently
         } catch (error) {
             toast.error("Failed to remove member");
         }
@@ -437,7 +437,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         try {
             await supabase.from("groups").update(updates).eq("id", groupId);
             setGroup((prev: any) => ({ ...prev, ...updates }));
-            toast.success("Settings updated!");
+            // Settings updated silently
         } catch (error) {
             toast.error("Failed to update settings");
         }
@@ -584,7 +584,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         try {
             await supabase.from('group_messages').delete().eq('id', messageId);
             queryClient.invalidateQueries({ queryKey: ['messages', groupId] });
-            toast.success('Message deleted');
+            // Message deleted silently
         } catch (error: any) {
             toast.error('Failed to delete message');
         }
@@ -709,7 +709,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
                                                     });
                                                     await supabase.from('group_messages').update({ poll_data: newPollData } as any).eq('id', m.id);
                                                     queryClient.invalidateQueries({ queryKey: ['messages', groupId] });
-                                                    toast.success('Vote recorded!');
+                                                    // Vote recorded silently
                                                 } catch (error) {
                                                     toast.error('Failed to vote');
                                                 }

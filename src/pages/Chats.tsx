@@ -191,7 +191,7 @@ export default function Chats() {
                 return dateB - dateA;
             }));
 
-            toast.success(currentStatus ? "Chat unpinned" : "Chat pinned");
+            // Pinned/unpinned silently
         } catch (error) {
             toast.error("Failed to update pin status");
         }
@@ -217,7 +217,7 @@ export default function Chats() {
             );
             setGroups(updatedGroups);
 
-            toast.success(currentStatus ? "Chat unarchived" : "Chat archived");
+            // Archived/unarchived silently
         } catch (error) {
             console.error("Failed to toggle archive:", error);
             toast.error("Failed to update chat");
@@ -258,7 +258,7 @@ export default function Chats() {
                 navigate('/chats', { replace: true });
             }
 
-            toast.success("Chat deleted successfully");
+            // Deleted silently
         } catch (error) {
             console.error("Failed to delete chat:", error);
             toast.error("Failed to delete chat");

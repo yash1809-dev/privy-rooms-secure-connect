@@ -68,9 +68,7 @@ export const CreateRoomDialog = () => {
 
       if (error) throw error;
 
-      toast.success("Room created successfully!", {
-        description: "Share the link to invite others"
-      });
+      // Room created silently
 
       setOpen(false);
       navigate(`/room/${data.id}`);
