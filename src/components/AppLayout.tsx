@@ -116,7 +116,7 @@ export function AppLayout() {
                             onClick={() => navigate('/dashboard')}
                         >
                             <img
-                                src="/favicon.png"
+                                src="/logo.png"
                                 alt="CollegeOS"
                                 className="h-24 w-24 sm:h-28 sm:w-28 object-contain transition-transform group-hover:scale-110"
                             />
