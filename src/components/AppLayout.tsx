@@ -112,13 +112,13 @@ export function AppLayout() {
                 <header className="border-b bg-card">
                     <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
                         <div
-                            className="flex items-center gap-2.5 cursor-pointer group transition-all"
+                            className="flex items-center gap-3 cursor-pointer group transition-all"
                             onClick={() => navigate('/dashboard')}
                         >
                             <img
                                 src="/favicon.png"
                                 alt="CollegeOS"
-                                className="h-11 w-11 sm:h-12 sm:w-12 object-contain transition-transform group-hover:scale-105"
+                                className="h-9 w-9 sm:h-10 sm:w-10 object-contain transition-transform group-hover:scale-110"
                             />
                             <h1 className="text-xl sm:text-2xl font-bold text-primary group-hover:opacity-80 transition-opacity">
                                 CollegeOS
