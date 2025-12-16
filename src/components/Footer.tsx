@@ -2,13 +2,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { DonationDialog } from "./DonationDialog";
+import { cn } from "@/lib/utils";
 
-export function Footer() {
+interface FooterProps {
+  className?: string;
+}
+
+export function Footer({ className }: FooterProps) {
   const [donationOpen, setDonationOpen] = useState(false);
 
   return (
     <>
-      <footer className="border-t py-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <footer className={cn("border-t py-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", className)}>
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground">
