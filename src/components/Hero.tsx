@@ -5,7 +5,7 @@ import heroBg from "@/assets/hero-bg.jpg";
 
 export const Hero = () => {
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center overflow-x-hidden">
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <img
