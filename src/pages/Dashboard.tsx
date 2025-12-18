@@ -225,29 +225,29 @@ export default function Dashboard() {
 
         {/* --- TOP HUD CONTROLS --- */}
         <input type="file" id="wallpaper-upload" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-        <div className="fixed top-0 left-0 lg:left-80 right-0 z-50 flex items-center justify-between px-6 py-4 pointer-events-none">
-          <div className="flex items-center gap-3 pointer-events-auto cursor-pointer group" onClick={() => navigate('/dashboard')}>
+        <div className="fixed top-0 left-0 lg:left-80 right-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 pointer-events-none">
+          <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto cursor-pointer group" onClick={() => navigate('/dashboard')}>
             <div className="relative">
               <div className="absolute -inset-2 bg-teal-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity rounded-full" />
-              <img src="/logo.png" alt="CollegeOS" className="h-10 w-10 sm:h-12 sm:w-12 object-contain transition-transform group-hover:scale-110 drop-shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
+              <img src="/logo.png" alt="CollegeOS" className="h-8 w-8 sm:h-10 sm:w-10 object-contain transition-transform group-hover:scale-110 drop-shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
             </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tighter text-white group-hover:text-teal-400 transition-colors">CollegeOS</h1>
+            <div className="hidden sm:flex flex-col">
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter text-white group-hover:text-teal-400 transition-colors">CollegeOS</h1>
               <span className="text-[8px] font-mono text-teal-500/60 uppercase tracking-[0.3em]">Neural Interface v2.5</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
             <Button
               variant="outline" size="icon" onClick={() => navigate("/chats")}
-              className="rounded-full bg-black/40 backdrop-blur-md border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-300 transition-all hover:scale-110"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/40 backdrop-blur-md border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-300 transition-all hover:scale-110"
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-full bg-black/40 backdrop-blur-md border-white/10 hover:bg-white/10 hover:border-white/20 transition-all hover:scale-110">
+                <Button variant="outline" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/40 backdrop-blur-md border-white/10 hover:bg-white/10 hover:border-white/20 transition-all hover:scale-110">
                   <MoreVertical className="w-5 h-5 text-slate-300" />
                 </Button>
               </PopoverTrigger>
@@ -335,25 +335,25 @@ export default function Dashboard() {
         </div>
 
         {/* --- MOBILE TELEPORTER --- */}
-        <div className="fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-4 lg:hidden">
-          <div className="glass-panel p-2 rounded-full flex flex-col gap-2 shadow-2xl border-white/10 bg-black/20 backdrop-blur-md">
+        <div className="fixed right-3 bottom-24 z-40 flex flex-col gap-3 lg:hidden">
+          <div className="glass-panel p-1.5 rounded-2xl flex flex-col gap-2 shadow-2xl border-white/10 bg-black/30 backdrop-blur-md">
             {SECTIONS.map((section) => (
               <button
                 key={section.id} onClick={() => teleportTo(section.id)}
                 className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                  activeZone === section.id ? "bg-white/10 shadow-lg scale-110" : "hover:bg-white/5"
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
+                  activeZone === section.id ? "bg-white/20 shadow-lg scale-105" : "hover:bg-white/10"
                 )}
               >
-                <section.icon className={cn("w-4 h-4", section.color)} />
+                <section.icon className={cn("w-5 h-5", section.color)} />
               </button>
             ))}
           </div>
         </div>
 
         {/* --- MAP CONTENT --- */}
-        <div className="relative z-10 w-full pt-20 pb-48 px-4 md:px-8 max-w-4xl mx-auto">
-          <header className="mb-32 text-center space-y-6 animate-in fade-in slide-in-from-top-12 duration-1000">
+        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-3 sm:px-4 md:px-8 max-w-4xl mx-auto">
+          <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-1000">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-300 text-[9px] font-mono tracking-[0.2em] uppercase backdrop-blur-sm relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
               <span className="relative flex h-2 w-2">
@@ -364,7 +364,7 @@ export default function Dashboard() {
             </div>
             <div className="relative group">
               <div className="absolute -inset-10 bg-gradient-to-r from-teal-500/20 via-indigo-500/20 to-pink-500/20 blur-[100px] opacity-20 group-hover:opacity-40 transition-opacity" />
-              <h1 className="text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-slate-500/50 drop-shadow-2xl relative z-10 filter brightness-125 animate-glitch">
+              <h1 className="text-5xl sm:text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-slate-500/50 drop-shadow-2xl relative z-10 filter brightness-125 animate-glitch">
                 CAMPUS
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_3s_infinite] mix-blend-overlay pointer-events-none" />
               </h1>
@@ -376,8 +376,8 @@ export default function Dashboard() {
           </header>
 
           <MapZone id="focus-zone" title="Focus Sanctuary" subtitle="Regeneration Sector" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="teal" icon={Clock}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-              <Card className="glass-card p-8 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
+              <Card className="glass-card p-4 sm:p-6 md:p-8 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl">
                 <FocusTimer
                   onSessionComplete={handleSessionComplete}
                   setMinutesFocused={setMinutesFocused}
