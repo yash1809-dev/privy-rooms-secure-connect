@@ -19,24 +19,36 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log('[Login] Starting login process...');
 
     try {
+      console.log('[Login] Calling Supabase signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Login] Supabase error:', error);
+        throw error;
+      }
+
+      console.log('[Login] Login successful:', data);
 
       if (data.user) {
+        console.log('[Login] User authenticated, navigating to dashboard...');
         toast.success("Welcome back!");
         navigate("/dashboard");
+      } else {
+        console.error('[Login] No user data received');
+        throw new Error("No user data received");
       }
     } catch (error: any) {
+      console.error('[Login] Login failed:', error);
       toast.error(error.message || "Failed to sign in");
-    } finally {
-      setLoading(false);
+      setLoading(false); // Ensure we stop loading on error
     }
+    // Note: Don't set loading to false on success, let navigation handle it
   };
 
   return (

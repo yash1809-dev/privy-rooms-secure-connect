@@ -1,14 +1,17 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { FocusTimer } from "@/components/dashboard/FocusTimer";
-import { FocusPlant } from "@/components/dashboard/FocusPlant";
+
+// Lazy load heavy components for better mobile performance
+const FocusTimer = lazy(() => import("@/components/dashboard/FocusTimer").then(m => ({ default: m.FocusTimer })));
+const FocusPlant = lazy(() => import("@/components/dashboard/FocusPlant").then(m => ({ default: m.FocusPlant })));
+const NeuralBuddy = lazy(() => import("@/components/dashboard/NeuralBuddy").then(m => ({ default: m.NeuralBuddy })));
+const TodoList = lazy(() => import("@/components/dashboard/TodoList").then(m => ({ default: m.TodoList })));
+
 import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
-import { TodoList } from "@/components/dashboard/TodoList";
-import { NeuralBuddy } from "@/components/dashboard/NeuralBuddy";
 import {
   Clock, GraduationCap, Mic, MapPin, Lock, Unlock,
   Map as MapIcon, ChevronRight, Zap, MoreVertical, Image as ImageIcon, RotateCcw,
@@ -378,15 +381,19 @@ export default function Dashboard() {
           <MapZone id="focus-zone" title="Focus Sanctuary" subtitle="Regeneration Sector" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="teal" icon={Clock}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
               <Card className="glass-card p-4 sm:p-6 md:p-8 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl">
-                <FocusTimer
-                  onSessionComplete={handleSessionComplete}
-                  setMinutesFocused={setMinutesFocused}
-                  onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
-                />
+                <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-teal-500 border-t-transparent rounded-full"></div></div>}>
+                  <FocusTimer
+                    onSessionComplete={handleSessionComplete}
+                    setMinutesFocused={setMinutesFocused}
+                    onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
+                  />
+                </Suspense>
               </Card>
               <div id="focus-plant-container" className="flex justify-center relative">
                 <div className="absolute inset-0 bg-teal-500/20 blur-[100px] rounded-full opacity-30 animate-pulse" />
-                <FocusPlant minutesFocused={minutesFocused} />
+                <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="animate-pulse text-teal-500">Loading plant...</div></div>}>
+                  <FocusPlant minutesFocused={minutesFocused} />
+                </Suspense>
               </div>
             </div>
           </MapZone>
@@ -432,14 +439,18 @@ export default function Dashboard() {
                     <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mt-1">Primary Objectives Active</p>
                   </div>
                 </div>
-                <TodoList todos={todos} setTodos={setTodos} onTaskComplete={handleTaskComplete} />
+                <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-amber-500 border-t-transparent rounded-full"></div></div>}>
+                  <TodoList todos={todos} setTodos={setTodos} onTaskComplete={handleTaskComplete} />
+                </Suspense>
               </div>
             </Card>
           </MapZone>
         </div>
       </div>
 
-      <NeuralBuddy status={buddyStatus} />
+      <Suspense fallback={null}>
+        <NeuralBuddy status={buddyStatus} />
+      </Suspense>
     </div>
   );
 }
