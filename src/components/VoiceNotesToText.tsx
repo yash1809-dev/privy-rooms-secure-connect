@@ -444,26 +444,27 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
   const dateLabel = selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Today";
 
   return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle>Voice Notes → Text</CardTitle>
-        <CardDescription>
+    <Card className="mb-6 sm:mb-8 border-0 shadow-none bg-transparent">
+      <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6">
+        <CardTitle className="text-base sm:text-lg">Voice Notes → Text</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">
           {isViewingToday
             ? "Capture audio with a heading, then group recordings by day and transcribe on demand."
             : `Viewing recordings from ${dateLabel}`}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6 pb-3 sm:pb-6">
         {isViewingToday && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="voice-note-heading">Recording heading</Label>
+              <Label htmlFor="voice-note-heading" className="text-sm sm:text-base">Recording heading</Label>
               <Input
                 id="voice-note-heading"
                 placeholder="e.g. Weekly sync prep"
                 value={headingInput}
                 onChange={(event) => setHeadingInput(event.target.value)}
                 disabled={recording || uploading}
+                className="h-10 sm:h-11"
               />
               <p className="text-xs text-muted-foreground">
                 The exact time and date are saved automatically with every note.
@@ -471,7 +472,7 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button size="sm" onClick={toggleRecording} disabled={!mediaSupported || uploading}>
+              <Button size="sm" onClick={toggleRecording} disabled={!mediaSupported || uploading} className="h-10 sm:h-9 w-full sm:w-auto">
                 {recording ? (
                   <>
                     <Square className="mr-2 h-4 w-4" />
@@ -484,15 +485,15 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                   </>
                 )}
               </Button>
-              {status && <div className="text-xs text-muted-foreground">{status}</div>}
-              {uploading && <div className="text-xs text-primary">Uploading...</div>}
+              {status && <div className="text-xs text-muted-foreground text-center sm:text-left">{status}</div>}
+              {uploading && <div className="text-xs text-primary text-center sm:text-left">Uploading...</div>}
             </div>
 
-            <div className="rounded border bg-background p-3 text-sm text-muted-foreground min-h-24">
+            <div className="rounded border bg-background p-3 sm:p-4 text-sm text-muted-foreground min-h-24">
               {recording ? (
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Live transcript</p>
-                  <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-foreground">
+                  <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-foreground text-sm">
                     {liveTranscript || "Listening…"}
                   </div>
                 </div>

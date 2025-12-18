@@ -402,14 +402,14 @@ export default function Dashboard() {
           <MapPath />
 
           <MapZone id="broadcast-zone" title="Broadcast Tower" subtitle="Signal Relay" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="pink" icon={Mic}>
-            <Card className="glass-card border-pink-500/20 bg-slate-900/40 glass-card-hover min-h-[400px] backdrop-blur-xl">
-              <div className="p-8">
-                <div className="flex items-center gap-6 mb-10">
-                  <div className="p-4 rounded-2xl bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.1)]">
-                    <Mic className="w-8 h-8" />
+            <Card className="glass-card border-pink-500/20 bg-slate-900/40 glass-card-hover min-h-[400px] backdrop-blur-xl overflow-hidden">
+              <div className="p-3 sm:p-6 md:p-8">
+                <div className="flex items-center gap-3 sm:gap-6 mb-6 sm:mb-10">
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.1)]">
+                    <Mic className="w-6 h-6 sm:w-8 sm:h-8" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tight">Signal Processor</h3>
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">Signal Processor</h3>
                     <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mt-1">Status: Listening...</p>
                   </div>
                 </div>
