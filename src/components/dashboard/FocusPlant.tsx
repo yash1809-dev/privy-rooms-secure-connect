@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 interface FocusPlantProps {
@@ -6,255 +5,183 @@ interface FocusPlantProps {
 }
 
 export function FocusPlant({ minutesFocused }: FocusPlantProps) {
-  // Growth stages based on time
-  const growth = Math.min(100, (minutesFocused / 120) * 100); // 120 min = full growth
+  const growth = Math.min(100, (minutesFocused / 120) * 100);
   const stage =
     minutesFocused < 5 ? 'seed' :
       minutesFocused < 20 ? 'sprout' :
         minutesFocused < 60 ? 'young' : 'mature';
 
-  const leaves = useMemo(() => {
-    const count = Math.floor((minutesFocused / 10) * 3);
-    return [...Array(Math.min(count, 12))].map((_, i) => ({
-      angle: (i * 360 / count) + (i % 2 * 30),
-      delay: i * 0.1,
-      size: 0.7 + (i % 3) * 0.15
-    }));
-  }, [minutesFocused]);
+  const leafCount = Math.min(8, Math.floor(minutesFocused / 5));
 
   return (
-    <div className="relative w-full max-w-md mx-auto">
-      <div className="relative aspect-square flex items-end justify-center px-8 pb-8">
+    <div className="relative w-full max-w-sm mx-auto select-none">
+      <div className="relative h-80 flex items-end justify-center pb-8">
 
         {/* Ambient Glow */}
         <div className={cn(
-          "absolute inset-0 rounded-full blur-3xl transition-all duration-1000",
+          "absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full blur-3xl transition-all duration-1000",
           stage === 'seed' ? "bg-amber-500/20" :
-            stage === 'sprout' ? "bg-teal-500/30" :
-              "bg-emerald-500/40"
+            stage === 'sprout' ? "bg-teal-500/25" :
+              "bg-emerald-500/30"
         )} />
 
-        {/* Plant Container */}
-        <div className="relative w-full h-full flex flex-col items-center justify-end">
+        <div className="relative z-10 flex flex-col items-center">
 
-          {/* PLANT POT */}
-          <svg viewBox="0 0 200 280" className="w-full h-full overflow-visible">
-            <defs>
-              {/* Gradients */}
-              <linearGradient id="potGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#78350f" />
-                <stop offset="100%" stopColor="#44403c" />
-              </linearGradient>
-              <linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#451a03" />
-                <stop offset="100%" stopColor="#292524" />
-              </linearGradient>
-              <linearGradient id="stemGrad" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="#166534" />
-                <stop offset="50%" stopColor="#15803d" />
-                <stop offset="100%" stopColor="#22c55e" />
-              </linearGradient>
-              <radialGradient id="leafGrad">
-                <stop offset="0%" stopColor="#4ade80" />
-                <stop offset="70%" stopColor="#22c55e" />
-                <stop offset="100%" stopColor="#166534" />
-              </radialGradient>
+          {/* TERRACOTTA POT */}
+          <div className="absolute bottom-0 w-32 h-24 bg-gradient-to-br from-orange-800 via-orange-700 to-orange-900 rounded-b-3xl shadow-2xl"
+            style={{
+              clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)',
+              boxShadow: 'inset 2px 2px 8px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.5)'
+            }}>
+            {/* Pot rim */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-36 h-4 bg-gradient-to-b from-orange-600 to-orange-800 rounded-full shadow-lg border-b border-orange-900" />
+            {/* Pot shine */}
+            <div className="absolute top-4 left-4 w-12 h-16 bg-gradient-to-br from-white/10 to-transparent rounded-full" />
+          </div>
 
-              {/* Filters */}
-              <filter id="shadow">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                <feOffset dx="0" dy="4" result="offsetblur" />
-                <feComponentTransfer>
-                  <feFuncA type="linear" slope="0.3" />
-                </feComponentTransfer>
-                <feMerge>
-                  <feMergeNode />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
+          {/* SOIL */}
+          <div className="absolute bottom-20 w-28 h-3 bg-gradient-to-b from-amber-900 to-stone-950 rounded-full shadow-inner" />
 
-            {/* POT */}
-            <g filter="url(#shadow)">
-              {/* Pot body */}
-              <path
-                d="M 60 240 L 70 200 L 130 200 L 140 240 Z"
-                fill="url(#potGrad)"
-                stroke="#57534e"
-                strokeWidth="2"
-              />
-              {/* Pot rim */}
-              <ellipse cx="100" cy="200" rx="35" ry="8" fill="#78350f" stroke="#57534e" strokeWidth="1.5" />
-              <ellipse cx="100" cy="200" rx="32" ry="6" fill="#a16207" opacity="0.3" />
-              {/* Pot base */}
-              <ellipse cx="100" cy="240" rx="25" ry="6" fill="#292524" />
+          {/* SEED STAGE */}
+          {stage === 'seed' && (
+            <div className="absolute bottom-20 flex items-center justify-center">
+              <div className="relative">
+                <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full shadow-lg animate-pulse" />
+                <div className="absolute inset-0 bg-yellow-300 rounded-full blur-md animate-pulse opacity-50" />
+              </div>
+            </div>
+          )}
 
-              {/* Pot pattern */}
-              <line x1="70" y1="205" x2="75" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
-              <line x1="100" y1="205" x2="100" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
-              <line x1="130" y1="205" x2="125" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
-            </g>
+          {/* STEM */}
+          {minutesFocused >= 5 && (
+            <div
+              className="absolute bottom-20 w-2 bg-gradient-to-t from-green-800 via-green-600 to-green-500 rounded-full transition-all duration-1000 shadow-lg"
+              style={{
+                height: `${Math.min(100, growth * 1.2)}px`,
+                transformOrigin: 'bottom center'
+              }}
+            />
+          )}
 
-            {/* SOIL */}
-            <ellipse cx="100" cy="202" rx="30" ry="7" fill="url(#soilGrad)" />
+          {/* LEAVES */}
+          {minutesFocused >= 10 && [...Array(leafCount)].map((_, i) => {
+            const isLeft = i % 2 === 0;
+            const yPos = 80 + (i * 12);
+            const leafSize = 1 - (i * 0.08);
 
-            {/* SEED STAGE */}
-            {stage === 'seed' && (
-              <g>
-                <circle
-                  cx="100"
-                  cy="195"
-                  r="5"
-                  fill="#f59e0b"
-                  className="animate-pulse"
-                >
-                  <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
-                </circle>
-                <circle cx="100" cy="195" r="8" fill="none" stroke="#fbbf24" strokeWidth="0.5" opacity="0.3" className="animate-ping" />
-              </g>
-            )}
-
-            {/* STEM */}
-            {minutesFocused >= 5 && (
-              <g>
-                <path
-                  d={`M 100 195 Q 95 ${195 - growth * 0.8} 100 ${195 - growth}`}
-                  fill="none"
-                  stroke="url(#stemGrad)"
-                  strokeWidth={Math.min(6, 2 + growth / 20)}
-                  strokeLinecap="round"
-                  className="transition-all duration-500"
-                />
-                {/* Stem details */}
-                <path
-                  d={`M 100 ${195 - growth * 0.3} Q 102 ${195 - growth * 0.4} 100 ${195 - growth * 0.5}`}
-                  fill="none"
-                  stroke="#86efac"
-                  strokeWidth="0.5"
-                  opacity="0.5"
-                />
-              </g>
-            )}
-
-            {/* LEAVES */}
-            {minutesFocused >= 10 && leaves.map((leaf, i) => {
-              const stemY = 195 - growth;
-              const leafY = stemY + (i * 8);
-              const isLeft = i % 2 === 0;
-
-              return (
-                <g key={i} opacity={Math.min(1, (minutesFocused - 10 - i * 2) / 5)}>
-                  {/* Leaf */}
-                  <ellipse
-                    cx={100 + (isLeft ? -15 : 15) * leaf.size}
-                    cy={leafY}
-                    rx={12 * leaf.size}
-                    ry={20 * leaf.size}
-                    fill="url(#leafGrad)"
-                    stroke="#15803d"
-                    strokeWidth="1"
-                    transform={`rotate(${isLeft ? -30 : 30} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY})`}
-                    filter="url(#shadow)"
-                  >
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      values={`${isLeft ? -35 : 35} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY};${isLeft ? -25 : 25} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY};${isLeft ? -35 : 35} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY}`}
-                      dur={`${3 + leaf.delay}s`}
-                      repeatCount="indefinite"
-                    />
-                  </ellipse>
-                  {/* Leaf vein */}
-                  <line
-                    x1={100}
-                    y1={leafY}
-                    x2={100 + (isLeft ? -15 : 15) * leaf.size}
-                    y2={leafY}
-                    stroke="#86efac"
-                    strokeWidth="0.5"
-                    opacity="0.4"
-                  />
-                </g>
-              );
-            })}
-
-            {/* FLOWERS (mature stage) */}
-            {minutesFocused >= 60 && (
-              <g>
-                {[0, 1, 2].map((i) => (
-                  <g key={i} opacity={Math.min(1, (minutesFocused - 60 - i * 10) / 15)}>
-                    <circle
-                      cx={100 + (i === 1 ? 0 : i === 0 ? -20 : 20)}
-                      cy={80 - growth * 0.3 + i * 5}
-                      r="6"
-                      fill="#fbbf24"
-                      filter="url(#shadow)"
-                    />
-                    {[...Array(5)].map((_, petal) => (
-                      <ellipse
-                        key={petal}
-                        cx={100 + (i === 1 ? 0 : i === 0 ? -20 : 20)}
-                        cy={80 - growth * 0.3 + i * 5}
-                        rx="4"
-                        ry="8"
-                        fill="#fef3c7"
-                        stroke="#f59e0b"
-                        strokeWidth="0.5"
-                        transform={`rotate(${petal * 72} ${100 + (i === 1 ? 0 : i === 0 ? -20 : 20)} ${80 - growth * 0.3 + i * 5})`}
-                      />
-                    ))}
-                  </g>
-                ))}
-              </g>
-            )}
-
-          </svg>
-        </div>
-
-        {/* Floating particles */}
-        {minutesFocused >= 20 && (
-          <div className="absolute inset-0 pointer-events-none">
-            {[...Array(6)].map((_, i) => (
+            return (
               <div
                 key={i}
-                className="absolute w-1 h-1 bg-emerald-400 rounded-full animate-[float_3s_ease-in-out_infinite]"
+                className="absolute transition-all duration-700"
                 style={{
-                  left: `${30 + Math.random() * 40}%`,
-                  top: `${20 + Math.random() * 60}%`,
-                  animationDelay: `${i * 0.5}s`,
-                  opacity: 0.6
+                  bottom: `${yPos}px`,
+                  left: isLeft ? '45%' : '55%',
+                  transform: `translateX(-50%) rotate(${isLeft ? -45 : 45}deg)`,
+                  opacity: Math.min(1, (minutesFocused - 10 - i * 3) / 10)
                 }}
-              />
-            ))}
-          </div>
-        )}
+              >
+                <div
+                  className="relative"
+                  style={{
+                    animation: `sway ${3 + i * 0.3}s ease-in-out infinite`,
+                    animationDelay: `${i * 0.2}s`
+                  }}
+                >
+                  {/* Leaf shape */}
+                  <div
+                    className="bg-gradient-to-br from-green-400 via-green-500 to-green-700 rounded-full shadow-lg"
+                    style={{
+                      width: `${40 * leafSize}px`,
+                      height: `${25 * leafSize}px`,
+                      borderRadius: '50% 0% 50% 0%',
+                      boxShadow: 'inset -2px -2px 4px rgba(0,0,0,0.2), 2px 2px 8px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    {/* Leaf vein */}
+                    <div className="absolute top-1/2 left-0 right-0 h-px bg-green-600 opacity-30" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* FLOWERS */}
+          {minutesFocused >= 60 && [0, 1].map((i) => (
+            <div
+              key={i}
+              className="absolute transition-all duration-1000"
+              style={{
+                bottom: `${140 + i * 20}px`,
+                left: i === 0 ? '35%' : '65%',
+                opacity: Math.min(1, (minutesFocused - 60 - i * 15) / 20)
+              }}
+            >
+              {/* Flower center */}
+              <div className="relative w-6 h-6 bg-yellow-400 rounded-full shadow-lg">
+                {/* Petals */}
+                {[...Array(6)].map((_, p) => (
+                  <div
+                    key={p}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      transform: `rotate(${p * 60}deg) translateY(-8px)`,
+                    }}
+                  >
+                    <div className="w-4 h-4 bg-gradient-to-br from-pink-300 to-pink-500 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+        </div>
       </div>
 
       {/* Growth Stats */}
-      <div className="mt-6 text-center space-y-2">
-        <p className={cn(
-          "text-lg font-bold transition-colors",
-          stage === 'seed' ? "text-amber-500" :
-            stage === 'sprout' ? "text-teal-500" :
-              stage === 'young' ? "text-emerald-500" :
-                "text-green-400"
+      <div className="mt-6 text-center space-y-3">
+        <div className={cn(
+          "inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all backdrop-blur-sm",
+          stage === 'seed' ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
+            stage === 'sprout' ? "bg-teal-500/10 border-teal-500/30 text-teal-400" :
+              stage === 'young' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                "bg-green-500/10 border-green-500/30 text-green-400"
         )}>
-          {stage === 'seed' && '🌱 Seed Stage'}
-          {stage === 'sprout' && '🌿 Sprouting'}
-          {stage === 'young' && '🪴 Growing Strong'}
-          {stage === 'mature' && '🌸 Fully Bloomed'}
-        </p>
-        <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-          <span className="font-mono">{minutesFocused}m focused</span>
-          <span>•</span>
-          <span>{Math.floor(growth)}% grown</span>
+          <span className="text-2xl">
+            {stage === 'seed' && '🌱'}
+            {stage === 'sprout' && '🌿'}
+            {stage === 'young' && '🪴'}
+            {stage === 'mature' && '🌺'}
+          </span>
+          <span className="font-bold text-sm">
+            {stage === 'seed' && 'Planting Seed'}
+            {stage === 'sprout' && 'First Sprout!'}
+            {stage === 'young' && 'Growing Well'}
+            {stage === 'mature' && 'In Full Bloom'}
+          </span>
+        </div>
+
+        <div className="max-w-xs mx-auto space-y-2">
+          <div className="h-2 bg-slate-800/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+            <div
+              className={cn(
+                "h-full transition-all duration-500 rounded-full",
+                stage === 'seed' ? "bg-gradient-to-r from-amber-500 to-yellow-500" :
+                  "bg-gradient-to-r from-emerald-500 to-green-400"
+              )}
+              style={{ width: `${growth}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span className="font-mono">{minutesFocused} min</span>
+            <span className="font-bold text-emerald-400">{Math.floor(growth)}%</span>
+          </div>
         </div>
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0) translateX(0); }
-          50% { transform: translateY(-15px) translateX(5px); }
+        @keyframes sway {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(5deg); }
         }
       `}</style>
     </div>
