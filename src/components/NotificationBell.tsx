@@ -42,7 +42,9 @@ export function NotificationBell({ onJoinCall }: NotificationBellProps = {}) {
         markAsRead.mutate(notificationId);
     };
 
-    const handleFollowBack = async (userId: string) => {
+    const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
+
+    const handleFollowBack = async (userId: string, notificationId: string) => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -57,17 +59,30 @@ export function NotificationBell({ onJoinCall }: NotificationBellProps = {}) {
 
             if (existing) {
                 toast.info("Already following");
+                setFollowedUsers(prev => new Set(prev).add(userId));
+                markAsRead.mutate(notificationId);
                 return;
             }
+
+            // Optimistic update
+            setFollowedUsers(prev => new Set(prev).add(userId));
 
             const { error } = await supabase
                 .from('follows')
                 .insert({ follower_id: user.id, following_id: userId });
 
             if (error) throw error;
+
             toast.success("Now following!");
+            markAsRead.mutate(notificationId);
         } catch (error: any) {
             toast.error("Failed to follow");
+            // Remove from optimistic update on error
+            setFollowedUsers(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(userId);
+                return newSet;
+            });
         }
     };
 
@@ -137,7 +152,7 @@ export function NotificationBell({ onJoinCall }: NotificationBellProps = {}) {
                             key={notification.id}
                             className={`flex flex-col items-start gap-2 p-3 cursor-pointer ${!notification.read ? 'bg-blue-50 dark:bg-blue-950/20' : ''
                                 }`}
-                            onClick={() => !notification.read && markAsRead.mutate(notification.id)}
+                            onClick={() => markAsRead.mutate(notification.id)}
                         >
                             <div className="flex items-start gap-3 w-full">
                                 {(notification.data?.sender_username || notification.data?.inviter_username) && (
@@ -185,13 +200,13 @@ export function NotificationBell({ onJoinCall }: NotificationBellProps = {}) {
                             )}
 
                             {/* Follow Back Button (after accepting friend request) */}
-                            {notification.type === 'friend_accepted' && notification.data?.user_id && (
+                            {notification.type === 'friend_accepted' && notification.data?.user_id && !notification.read && !followedUsers.has(notification.data.user_id) && (
                                 <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleFollowBack(notification.data.user_id);
+                                        handleFollowBack(notification.data.user_id, notification.id);
                                     }}
                                     className="w-full h-8 mt-1"
                                 >

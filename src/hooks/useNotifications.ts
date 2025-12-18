@@ -54,8 +54,30 @@ export function useNotifications() {
                         table: 'notifications',
                         filter: `user_id=eq.${user.id}`,
                     },
-                    () => {
-                        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                    (payload) => {
+                        console.log('[Notifications] New notification:', payload.new);
+                        // Optimistic insert
+                        queryClient.setQueryData<Notification[]>(['notifications'], (old = []) => {
+                            return [payload.new as Notification, ...old];
+                        });
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'notifications',
+                        filter: `user_id=eq.${user.id}`,
+                    },
+                    (payload) => {
+                        console.log('[Notifications] Notification updated:', payload.new);
+                        // Optimistic update
+                        queryClient.setQueryData<Notification[]>(['notifications'], (old = []) => {
+                            return old.map(n =>
+                                n.id === payload.new.id ? payload.new as Notification : n
+                            );
+                        });
                     }
                 )
                 .subscribe();
@@ -70,7 +92,7 @@ export function useNotifications() {
         };
     }, [queryClient]);
 
-    // Mark as read
+    // Mark as read with optimistic update
     const markAsRead = useMutation({
         mutationFn: async (notificationId: string) => {
             const { error } = await (supabase as any)
@@ -80,12 +102,35 @@ export function useNotifications() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onMutate: async (notificationId) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ['notifications'] });
+
+            // Snapshot previous value
+            const previousNotifications = queryClient.getQueryData<Notification[]>(['notifications']);
+
+            // Optimistically update
+            queryClient.setQueryData<Notification[]>(['notifications'], (old = []) => {
+                return old.map(n =>
+                    n.id === notificationId ? { ...n, read: true } : n
+                );
+            });
+
+            return { previousNotifications };
+        },
+        onError: (err, notificationId, context) => {
+            // Rollback on error
+            if (context?.previousNotifications) {
+                queryClient.setQueryData(['notifications'], context.previousNotifications);
+            }
+        },
+        onSettled: () => {
+            // Refetch to ensure consistency
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
         },
     });
 
-    // Mark all as read
+    // Mark all as read with optimistic update
     const markAllAsRead = useMutation({
         mutationFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -99,7 +144,24 @@ export function useNotifications() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['notifications'] });
+
+            const previousNotifications = queryClient.getQueryData<Notification[]>(['notifications']);
+
+            // Mark all as read optimistically
+            queryClient.setQueryData<Notification[]>(['notifications'], (old = []) => {
+                return old.map(n => ({ ...n, read: true }));
+            });
+
+            return { previousNotifications };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousNotifications) {
+                queryClient.setQueryData(['notifications'], context.previousNotifications);
+            }
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
         },
     });
