@@ -782,15 +782,16 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         );
     });
 
-    const layoutClass = isMobile ? "fixed inset-0 bg-background overflow-hidden" : "flex flex-col h-full bg-background";
+    const layoutClass = isMobile ? "fixed inset-0 bg-background" : "flex flex-col h-full bg-background";
 
     return (
         <div className={layoutClass}>
-            <div className={isMobile ? "h-full flex flex-col" : "flex flex-col h-full"}>
-                <Card className="flex-1 flex flex-col overflow-hidden min-h-0 border-0 shadow-none">
+            <div className="h-full flex flex-col">
+                <Card className="flex-1 flex flex-col overflow-hidden min-h-0 border-0 shadow-none h-full">
                     {headerContent}
-                    <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
-                        <div className="flex-1 px-3 pt-3 pb-0 overflow-y-auto bg-background/50 space-y-2 min-h-0 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
+                    <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden">
+                        {/* Messages Area - scrollable */}
+                        <div className="flex-1 px-3 pt-3 pb-2 overflow-y-auto bg-background/50 space-y-2 min-h-0 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
                             {!me ? <div className="flex items-center justify-center h-full" /> : (
                                 <>
                                     {messages.length === 0 && <div className="text-center text-muted-foreground py-8">No messages yet. Start the conversation!</div>}
@@ -799,7 +800,9 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
                                 </>
                             )}
                         </div>
-                        <div className={`space-y-2 px-3 ${isMobile ? 'pb-safe pb-4' : 'pb-3'}`}>
+
+                        {/* Input Area - fixed at bottom */}
+                        <div className={`flex-shrink-0 px-3 pt-2 space-y-2 ${isMobile ? 'pb-4' : 'pb-3'} bg-background border-t border-border/50`}>
                             {audioBlob && (
                                 <div className="flex items-center gap-3 p-3 bg-accent rounded-lg border">
                                     <div className="flex-1">
@@ -840,7 +843,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
                                     </div>
                                 </div>
                             )}
-                            <div className="flex gap-2 items-center mt-1">
+                            <div className="flex gap-2 items-center">
                                 <Popover open={attachmentMenuOpen} onOpenChange={setAttachmentMenuOpen}>
                                     <PopoverTrigger asChild>
                                         <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 flex-shrink-0"><Plus className="h-5 w-5" /></Button>
