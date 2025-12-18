@@ -308,11 +308,11 @@ export default function Chats() {
     }
 
     const chatListSidebar = (
-        <aside className={`flex flex-col h-screen ${isMobile ? 'w-full' : 'w-[380px]'} bg-background overflow-hidden`}>
+        <aside className={`flex flex-col h-screen ${isMobile ? 'w-full' : 'w-[380px]'} bg-slate-950 text-white border-r border-white/10 overflow-hidden`}>
             {/* Mobile Tabs - shown only on mobile */}
-            <div className="lg:hidden flex border-b bg-card">
+            <div className="lg:hidden flex border-b border-white/10 bg-slate-900 text-slate-400">
                 <button
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
                         }`}
                     onClick={() => setActiveTab("chats")}
                 >
@@ -323,7 +323,7 @@ export default function Chats() {
                     )}
                 </button>
                 <button
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
                         }`}
                     onClick={() => setActiveTab("calls")}
                 >
@@ -333,16 +333,16 @@ export default function Chats() {
             </div>
 
             {/* Header */}
-            <header className="bg-card border-b">
+            <header className="bg-slate-900 border-b border-white/10">
                 <div className="px-3 sm:px-4 py-3 sm:py-4">
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                         <div className="flex items-center gap-2 sm:gap-4">
                             {!isMobile && (
-                                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard")}>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-white hover:bg-white/10" onClick={() => navigate("/dashboard")}>
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
                             )}
-                            <h1 className="text-xl sm:text-2xl font-bold">Chats</h1>
+                            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Chats</h1>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -351,7 +351,7 @@ export default function Chats() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="rounded-full"
+                                    className="rounded-full text-slate-400 hover:text-white hover:bg-white/10"
                                     onClick={() => setUserSearchOpen(true)}
                                 >
                                     <UserPlus className="h-5 w-5" />
@@ -366,12 +366,12 @@ export default function Chats() {
 
                             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="rounded-full">
+                                    <Button variant="ghost" size="icon" className="rounded-full text-slate-400 hover:text-white hover:bg-white/10">
                                         <MoreVertical className="h-5 w-5" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onSelect={() => {
+                                <DropdownMenuContent align="end" className="bg-slate-900 border-white/10 text-white">
+                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white" onSelect={() => {
                                         setDropdownOpen(false);
                                         setTimeout(() => setCreateGroupOpen(true), 100);
                                     }}>
@@ -379,14 +379,14 @@ export default function Chats() {
                                     </DropdownMenuItem>
                                     {/* Mobile: Add Friends Option */}
                                     {isMobile && (
-                                        <DropdownMenuItem onClick={() => {
+                                        <DropdownMenuItem className="focus:bg-slate-800 focus:text-white" onClick={() => {
                                             setDropdownOpen(false);
                                             setUserSearchOpen(true);
                                         }}>
                                             <UserPlus className="mr-2 h-4 w-4" /> Add Friends
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem onClick={() => {
+                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white" onClick={() => {
                                         setDropdownOpen(false);
                                         setShowArchived(true);
                                     }}>
@@ -401,22 +401,22 @@ export default function Chats() {
                 <div className="px-3 sm:px-4 pb-3 sm:pb-4">
                     {/* Search Input */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                         <Input
                             type="text"
                             placeholder="Search chats..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 h-10"
+                            className="pl-10 h-10 bg-slate-950/50 border-white/10 text-white placeholder:text-slate-600 focus-visible:ring-teal-500/20"
                         />
                     </div>
                 </div>
             </header>
 
             {/* Desktop Tabs - always visible on desktop, hidden on mobile */}
-            <div className="hidden lg:flex border-b bg-card">
+            <div className="hidden lg:flex border-b border-white/10 bg-slate-900 text-slate-400">
                 <button
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
                         }`}
                     onClick={() => setActiveTab("chats")}
                 >
@@ -427,7 +427,7 @@ export default function Chats() {
                     )}
                 </button>
                 <button
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-accent border-b-2 border-primary" : "hover:bg-accent/50"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
                         }`}
                     onClick={() => setActiveTab("calls")}
                 >
@@ -438,20 +438,20 @@ export default function Chats() {
 
             {/* Chat List */}
             {activeTab === "chats" && (
-                <main className="flex-1 overflow-y-auto">
+                <main className="flex-1 overflow-y-auto custom-scrollbar">
                     {showArchived && (
-                        <div className="bg-muted/30 p-2 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer" onClick={() => setShowArchived(false)}>
+                        <div className="bg-slate-900/50 p-2 flex items-center gap-2 text-sm text-slate-400 cursor-pointer hover:text-white" onClick={() => setShowArchived(false)}>
                             <ArrowLeft className="h-4 w-4" />
                             Back to Chats
                         </div>
                     )}
 
                     {groups.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
+                        <div className="text-center py-12 text-slate-500">
                             <p>No chats yet. Create or join a group to start chatting!</p>
                         </div>
                     ) : (showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
+                        <div className="text-center py-12 text-slate-500">
                             <p>{showArchived ? "No archived chats" : `No chats found matching "${searchQuery}"`}</p>
                         </div>
                     ) : (
@@ -459,10 +459,10 @@ export default function Chats() {
                             {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
                                 <div
                                     key={group.id}
-                                    className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors relative ${groupId === group.id ? 'bg-accent' : ''}`}
+                                    className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative ${groupId === group.id ? 'bg-white/10' : ''}`}
                                     onClick={() => handleChatClick(group.id)}
                                     onMouseEnter={() => {
-                                        // Prefetch messages on hover for instant switching
+                                        // Prefetch messages on hover
                                         queryClient.prefetchQuery({
                                             queryKey: ['messages', group.id],
                                             queryFn: async () => {
@@ -478,50 +478,50 @@ export default function Chats() {
                                         });
                                     }}
                                 >
-                                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 border border-border/50">
+                                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 border border-white/10">
                                         <AvatarImage src={group.avatar_url || `https://api.dicebear.com/7.x/shapes/svg?seed=${group.id}`} className="object-cover" />
-                                        <AvatarFallback>{group.name[0]?.toUpperCase()}</AvatarFallback>
+                                        <AvatarFallback className="bg-slate-800 text-teal-400">{group.name[0]?.toUpperCase()}</AvatarFallback>
                                     </Avatar>
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                                            <h3 className="font-semibold truncate text-sm sm:text-base">{group.name}</h3>
-                                            {group.is_pinned && <Pin className="h-3 w-3 text-primary fill-current flex-shrink-0" />}
-                                            {group.is_archived && <Archive className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
+                                            <h3 className="font-semibold truncate text-sm sm:text-base text-white">{group.name}</h3>
+                                            {group.is_pinned && <Pin className="h-3 w-3 text-teal-500 fill-current flex-shrink-0" />}
+                                            {group.is_archived && <Archive className="h-3 w-3 text-slate-500 flex-shrink-0" />}
                                         </div>
                                         {group.lastMessage && (
-                                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                                                <span className="font-medium">{group.lastMessage.sender_name}:</span> {group.lastMessage.content}
+                                            <p className="text-xs sm:text-sm text-slate-400 truncate">
+                                                <span className="font-medium text-slate-300">{group.lastMessage.sender_name}:</span> {group.lastMessage.content}
                                             </p>
                                         )}
                                     </div>
 
                                     <div className="flex flex-col items-end gap-1 sm:gap-2 flex-shrink-0">
                                         {group.lastMessage && (
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                                            <span className="text-xs text-slate-500 whitespace-nowrap hidden sm:inline">
                                                 {formatDistanceToNow(new Date(group.lastMessage.created_at), { addSuffix: true })}
                                             </span>
                                         )}
                                         {group.unreadCount > 0 && (
-                                            <span className="h-2.5 w-2.5 bg-primary rounded-full" />
+                                            <span className="h-2.5 w-2.5 bg-teal-500 rounded-full shadow-[0_0_8px_#14b8a6]" />
                                         )}
 
                                         <div onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-white hover:bg-white/10 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenuItem onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
+                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-white/10 text-white">
+                                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white" onClick={(e) => togglePin(group.id, group.is_pinned || false, e)}>
                                                         {group.is_pinned ? (
                                                             <><PinOff className="h-4 w-4 mr-2" /> Unpin</>
                                                         ) : (
                                                             <><Pin className="h-4 w-4 mr-2" /> Pin</>
                                                         )}
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
+                                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white" onClick={(e) => toggleArchive(group.id, group.is_archived || false, e)}>
                                                         {group.is_archived ? (
                                                             <><ArchiveRestore className="h-4 w-4 mr-2" /> Unarchive</>
                                                         ) : (
@@ -530,7 +530,7 @@ export default function Chats() {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onClick={(e) => deleteGroup(group.id, e)}
-                                                        className="text-red-600 focus:text-red-600"
+                                                        className="text-red-400 focus:text-red-400 focus:bg-slate-800"
                                                     >
                                                         <Trash2 className="h-4 w-4 mr-2" /> Delete Chat
                                                     </DropdownMenuItem>
@@ -545,17 +545,17 @@ export default function Chats() {
 
                     {/* Archived Chats Button */}
                     {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
-                        <div className="p-4 border-t mt-auto">
+                        <div className="p-4 border-t border-white/10 mt-auto">
                             <Button
                                 variant="ghost"
-                                className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground"
+                                className="w-full flex items-center justify-between text-slate-400 hover:text-white hover:bg-white/5"
                                 onClick={() => setShowArchived(true)}
                             >
                                 <div className="flex items-center gap-2">
                                     <Archive className="h-4 w-4" />
                                     <span>Archived</span>
                                 </div>
-                                <span className="text-xs">{groups.filter(g => g.is_archived).length}</span>
+                                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded-full">{groups.filter(g => g.is_archived).length}</span>
                             </Button>
                         </div>
                     )}
@@ -564,11 +564,11 @@ export default function Chats() {
 
             {/* Call History */}
             {activeTab === "calls" && (
-                <main className="flex-1 overflow-y-auto px-4 py-6">
+                <main className="flex-1 overflow-y-auto px-4 py-6 custom-scrollbar">
                     {/* Start Call Button */}
                     <div className="mb-6">
                         <Button
-                            className="w-full"
+                            className="w-full bg-teal-600 hover:bg-teal-500 text-white"
                             size="lg"
                             onClick={() => setContactSelectorOpen(true)}
                         >
@@ -579,9 +579,9 @@ export default function Chats() {
 
                     {/* Call History List */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-4">Recent Calls</h3>
+                        <h3 className="text-lg font-semibold mb-4 text-white">Recent Calls</h3>
                         {callHistory.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
+                            <div className="text-center py-12 text-slate-500">
                                 <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                 <p>No call history yet</p>
                                 <p className="text-sm mt-2">Start your first video call!</p>
@@ -591,23 +591,23 @@ export default function Chats() {
                                 {callHistory.map((call) => (
                                     <div
                                         key={call.id}
-                                        className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                                        className="p-4 border border-white/5 rounded-lg hover:bg-white/5 transition-colors"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-primary/10 rounded-full">
-                                                    <Video className="h-5 w-5 text-primary" />
+                                                <div className="p-2 bg-teal-500/10 rounded-full">
+                                                    <Video className="h-5 w-5 text-teal-500" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium">
+                                                    <p className="font-medium text-white">
                                                         {call.participants.length} participant{call.participants.length !== 1 ? 's' : ''}
                                                     </p>
-                                                    <p className="text-sm text-muted-foreground">
+                                                    <p className="text-sm text-slate-400">
                                                         {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <Badge variant={call.status === "active" ? "default" : "secondary"}>
+                                            <Badge variant={call.status === "active" ? "default" : "secondary"} className={call.status === "active" ? "bg-teal-500" : "bg-slate-700"}>
                                                 {call.status}
                                             </Badge>
                                         </div>
@@ -623,12 +623,12 @@ export default function Chats() {
 
     // Desktop: Two-pane layout
     return (
-        <div className="min-h-screen bg-background flex">
+        <div className="min-h-screen bg-slate-950 flex">
             {/* Chat List Sidebar */}
             {chatListSidebar}
 
             {/* Right Panel: Active Conversation or Empty State */}
-            <div className="hidden lg:flex h-screen flex-1 flex-col bg-background">
+            <div className="hidden lg:flex h-screen flex-1 flex-col bg-slate-950 border-l border-white/10">
                 {groupId ? (
                     <ChatConversation
                         groupId={groupId}
@@ -643,9 +643,9 @@ export default function Chats() {
                     />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center">
-                        <MessageSquare className="h-20 w-20 mx-auto mb-4 text-muted-foreground/50" />
-                        <h3 className="text-xl font-semibold mb-2">Select a chat to start messaging</h3>
-                        <p className="text-muted-foreground">Choose a conversation from the list on the left</p>
+                        <MessageSquare className="h-20 w-20 mx-auto mb-4 text-slate-800" />
+                        <h3 className="text-xl font-semibold mb-2 text-slate-400">Select a chat to start messaging</h3>
+                        <p className="text-slate-600">Choose a conversation from the list on the left</p>
                     </div>
                 )}
             </div>

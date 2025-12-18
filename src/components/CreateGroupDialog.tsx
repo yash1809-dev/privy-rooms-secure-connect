@@ -31,9 +31,10 @@ interface CreateGroupDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   trigger?: React.ReactNode;
+  onGroupCreated?: () => void;
 }
 
-export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controlledOnOpenChange, trigger }: CreateGroupDialogProps = {}) => {
+export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controlledOnOpenChange, trigger, onGroupCreated }: CreateGroupDialogProps = {}) => {
   const navigate = useNavigate();
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -79,7 +80,8 @@ export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controll
       // Group created silently
 
       setOpen(false);
-      navigate(`/group/${data.id}`);
+      onGroupCreated?.();
+      // navigate(`/group/${data.id}`); // Stay on chats page which will refresh
     } catch (error: any) {
       toast.error(error.message || "Failed to create group");
     } finally {
@@ -99,38 +101,40 @@ export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controll
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-slate-900/95 border-white/10 text-white backdrop-blur-xl">
         <DialogHeader>
           <DialogTitle>Create a Group</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-slate-400">
             Create a long-term collaboration space for your team
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="group-name">Group Name</Label>
+            <Label htmlFor="group-name" className="text-white">Group Name</Label>
             <Input
               id="group-name"
               placeholder="My Team Group"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              className="bg-slate-950/50 border-white/10 text-white placeholder:text-slate-600 focus:border-teal-500/50"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="group-description">Description (optional)</Label>
+            <Label htmlFor="group-description" className="text-white">Description (optional)</Label>
             <Textarea
               id="group-description"
               placeholder="What's this group for?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              className="bg-slate-950/50 border-white/10 text-white placeholder:text-slate-600 focus:border-teal-500/50 resize-none"
             />
           </div>
 
           <div className="flex items-center justify-between">
-            <Label htmlFor="group-password-protect">Password Protection</Label>
+            <Label htmlFor="group-password-protect" className="text-white">Password Protection</Label>
             <Switch
               id="group-password-protect"
               checked={isPasswordProtected}
@@ -140,18 +144,19 @@ export const CreateGroupDialog = ({ open: controlledOpen, onOpenChange: controll
 
           {isPasswordProtected && (
             <div className="space-y-2">
-              <Label htmlFor="group-password">Group Password</Label>
+              <Label htmlFor="group-password" className="text-white">Group Password</Label>
               <InputWithToggle
                 id="group-password"
                 placeholder="Enter a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required={isPasswordProtected}
+                className="bg-slate-950/50 border-white/10 text-white placeholder:text-slate-600 focus:border-teal-500/50"
               />
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-500 text-white border-0" disabled={loading}>
             {loading ? "Creating..." : "Create Group"}
           </Button>
         </form>

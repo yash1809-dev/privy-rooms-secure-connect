@@ -37,7 +37,7 @@ export function FriendRequestButton({
         return (
             <Button size={size} variant="outline" disabled className="gap-2">
                 <UserCheck className="h-4 w-4" />
-                {showLabel && "Connected"}
+                {showLabel && <span className="hidden sm:inline">Connected</span>}
             </Button>
         );
     }
@@ -47,7 +47,7 @@ export function FriendRequestButton({
         return (
             <Button size={size} variant="outline" disabled className="gap-2">
                 <UserX className="h-4 w-4" />
-                {showLabel && "Request Declined"}
+                {showLabel && <span className="hidden sm:inline">Request Declined</span>}
             </Button>
         );
     }
@@ -62,7 +62,7 @@ export function FriendRequestButton({
                 className="gap-2"
             >
                 <Clock className="h-4 w-4" />
-                {showLabel && "Request Sent"}
+                {showLabel && <span className="hidden sm:inline">Request Sent</span>}
             </Button>
         );
     }
@@ -72,7 +72,7 @@ export function FriendRequestButton({
         return (
             <Button size={size} variant="outline" disabled className="gap-2">
                 <Clock className="h-4 w-4" />
-                {showLabel && "Pending"}
+                {showLabel && <span className="hidden sm:inline">Pending</span>}
             </Button>
         );
     }
@@ -83,11 +83,11 @@ export function FriendRequestButton({
             size={size}
             variant={variant}
             onClick={() => sendRequest.mutate(targetUserId)}
-            className="gap-2"
+            className="gap-2 shrink-0 bg-teal-600 hover:bg-teal-500 text-white border-none"
             disabled={sendRequest.isPending}
         >
             <UserPlus className="h-4 w-4" />
-            {showLabel && "Add Friend"}
+            {showLabel && <span className="hidden sm:inline">Add Friend</span>}
         </Button>
     );
 }
