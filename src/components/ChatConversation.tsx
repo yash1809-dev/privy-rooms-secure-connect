@@ -371,6 +371,10 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
         if (!me || !groupId) return;
         const messageContent = text.trim();
         if (!messageContent && !audioBlob) return;
+
+        // Clear input immediately for better UX (especially on mobile)
+        setText("");
+
         try {
             if (audioBlob) {
                 const fileName = `${groupId}/${me.id}/${Date.now()}.webm`;
@@ -383,9 +387,10 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
             } else {
                 await sendChatMessage({ group_id: groupId, sender_id: me.id, content: messageContent, sender: me });
             }
-            setText("");
             clearTyping(); // Clear typing indicator after sending
         } catch (error: any) {
+            // Restore text if sending failed
+            setText(messageContent);
             toast.error("Failed to send message");
         }
     };
@@ -781,7 +786,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
 
     return (
         <div className={layoutClass}>
-            <div className={isMobile ? "container mx-auto px-4 py-6 max-w-5xl h-full flex flex-col" : "flex flex-col h-full"}>
+            <div className={isMobile ? "h-full flex flex-col" : "flex flex-col h-full"}>
                 <Card className="flex-1 flex flex-col overflow-hidden min-h-0 border-0 shadow-none">
                     {headerContent}
                     <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
@@ -794,7 +799,7 @@ export function ChatConversation({ groupId, onBack, isMobile = false, initialGro
                                 </>
                             )}
                         </div>
-                        <div className="space-y-2 px-3 pb-3">
+                        <div className={`space-y-2 px-3 ${isMobile ? 'pb-safe pb-4' : 'pb-3'}`}>
                             {audioBlob && (
                                 <div className="flex items-center gap-3 p-3 bg-accent rounded-lg border">
                                     <div className="flex-1">

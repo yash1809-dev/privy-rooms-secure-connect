@@ -125,12 +125,18 @@ export function useChatMessages(groupId: string | undefined) {
         },
     });
 
-    // Realtime Subscription
+    // Realtime Subscription - Enhanced for instant delivery
     useEffect(() => {
         if (!groupId) return;
 
-        console.log("Setting up realtime subscription for group:", groupId);
-        const channel = supabase.channel(`group_chat_${groupId}`)
+        console.log("[Realtime] Setting up subscription for group:", groupId);
+
+        const channel = supabase.channel(`group_chat_${groupId}`, {
+            config: {
+                broadcast: { self: false }, // Don't broadcast to sender
+                presence: { key: groupId }
+            }
+        })
             .on(
                 'postgres_changes',
                 {
@@ -141,9 +147,9 @@ export function useChatMessages(groupId: string | undefined) {
                 },
                 async (payload: RealtimePostgresChangesPayload<Message>) => {
                     const newMessage = payload.new as Message;
-                    console.log("Realtime INSERT received:", newMessage);
+                    console.log("[Realtime] INSERT received:", newMessage.id, newMessage.content?.substring(0, 20));
 
-                    // Fetch sender details since the realtime payload doesn't include joined relations
+                    // Fetch sender details since realtime doesn't include joins
                     const { data: senderData } = await supabase
                         .from('profiles')
                         .select('id, username, email, avatar_url')
@@ -157,40 +163,30 @@ export function useChatMessages(groupId: string | undefined) {
                     };
 
                     queryClient.setQueryData<Message[]>(['messages', groupId], (current = []) => {
-                        // Deduplicate: Check if message with same ID exists
+                        // Check if message already exists (deduplication)
                         const exists = current.some(m => m.id === newMessage.id);
                         if (exists) {
-                            // If it exists and was temporary (optimistic), we might need to update it?
-                            // Actually, onSettled usually handles the optimistic -> real transition.
-                            // But if we receive the realtime event BEFORE onSettled returns, we should handle it.
-
-                            // Also, check for "optimistic duplicates": 
-                            // If we have a message with 'sending' status that matches the content/sender of this new message,
-                            // we should assume it's the same one (if we didn't use client-side UUID).
-                            // But here we rely on ID.
-
-                            // If we used client-side generated ID and sent it to DB, then IDs will match.
-                            // If DB generated ID, then optimistic ID != real ID.
-                            // In that case, we might have a duplicate if onSettled hasn't fired yet.
-                            // BUT, for text messages, we can't easily correlate without a client-assigned ID.
-
-                            // For this implementation, let's assume standard flow:
-                            // 1. Optimistic update adds (TempID)
-                            // 2. Mutation finishes -> Updates (TempID -> RealID)
-                            // 3. Realtime event arrives (RealID) -> If ID exists, ignore. If not, add.
-
-                            // Edge case: Realtime arrives BEFORE Mutation finishes.
-                            // We have (TempID) and receive (RealID).
-                            // We will have both for a split second until Mutation finishes and replaces TempID with RealID.
-                            // Then we'll have two identical messages (one locally updated, one from realtime).
-                            // To fix this, we need to correlate.
-
+                            console.log("[Realtime] Duplicate detected, skipping:", newMessage.id);
                             return current;
                         }
 
-                        // Deduplication strategy for latency race conditions:
-                        // If we have a 'sending' message with same content/sender/timestamp-nearby, treat as same.
-                        // Simple approach: Just append. Optimistic UI usually resolves fast.
+                        // Also check for optimistic messages that might match
+                        // (same sender, same content, within last 2 seconds, status='sending')
+                        const now = new Date(newMessage.created_at).getTime();
+                        const possibleDuplicate = current.find(m =>
+                            m.sender_id === newMessage.sender_id &&
+                            m.content === newMessage.content &&
+                            m.status === 'sending' &&
+                            Math.abs(new Date(m.created_at).getTime() - now) < 2000
+                        );
+
+                        if (possibleDuplicate) {
+                            console.log("[Realtime] Optimistic duplicate found, replacing:", possibleDuplicate.id, "->", newMessage.id);
+                            // Replace optimistic with real
+                            return current.map(m => m.id === possibleDuplicate.id ? messageWithSender : m);
+                        }
+
+                        console.log("[Realtime] Adding new message:", newMessage.id);
                         return [...current, messageWithSender];
                     });
                 }
@@ -205,6 +201,7 @@ export function useChatMessages(groupId: string | undefined) {
                 },
                 (payload) => {
                     const updatedMessage = payload.new as Message;
+                    console.log("[Realtime] UPDATE received:", updatedMessage.id);
                     queryClient.setQueryData<Message[]>(['messages', groupId], (current = []) => {
                         return current.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m);
                     });
@@ -220,14 +217,25 @@ export function useChatMessages(groupId: string | undefined) {
                 },
                 (payload) => {
                     const deletedId = payload.old.id;
+                    console.log("[Realtime] DELETE received:", deletedId);
                     queryClient.setQueryData<Message[]>(['messages', groupId], (current = []) => {
                         return current.filter(m => m.id !== deletedId);
                     });
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log("[Realtime] Subscription status:", status);
+                if (status === 'SUBSCRIBED') {
+                    console.log("[Realtime] ✅ Successfully subscribed to group:", groupId);
+                } else if (status === 'CHANNEL_ERROR') {
+                    console.error("[Realtime] ❌ Channel error for group:", groupId);
+                } else if (status === 'TIMED_OUT') {
+                    console.error("[Realtime] ⏱️ Subscription timed out for group:", groupId);
+                }
+            });
 
         return () => {
+            console.log("[Realtime] Cleaning up subscription for group:", groupId);
             supabase.removeChannel(channel);
         };
     }, [groupId, queryClient]);
