@@ -139,36 +139,33 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                                 className="shrink-0 h-5 w-5 border-slate-700 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500"
                             />
 
-                            <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <span className={cn(
-                                        "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border whitespace-nowrap",
-                                        todo.difficulty === 'hard' ? "text-pink-400 border-pink-500/20 bg-pink-500/5"
-                                            : todo.difficulty === 'medium' ? "text-indigo-400 border-indigo-500/20 bg-indigo-500/5"
-                                                : "text-teal-400 border-teal-500/20 bg-teal-500/5"
-                                    )}>
-                                        {todo.difficulty || 'easy'} Mission
-                                    </span>
-                                </div>
+                            <div className="flex-1 min-w-0 flex flex-col gap-1">
                                 <p className={cn(
-                                    "text-sm font-medium transition-all truncate",
+                                    "text-sm font-medium transition-all break-words leading-tight",
                                     todo.completed ? "line-through text-slate-500" : "text-white"
                                 )}>
                                     {todo.text}
                                 </p>
-                            </div>
 
-                            {!todo.completed && (
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-amber-500">+{xpRewards[todo.difficulty || 'easy']} XP</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={cn(
+                                        "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border whitespace-nowrap flex items-center gap-1",
+                                        todo.difficulty === 'hard' ? "text-pink-400 border-pink-500/20 bg-pink-500/5"
+                                            : todo.difficulty === 'medium' ? "text-indigo-400 border-indigo-500/20 bg-indigo-500/5"
+                                                : "text-teal-400 border-teal-500/20 bg-teal-500/5"
+                                    )}>
+                                        {todo.difficulty || 'easy'}
+                                        <span className="opacity-50">|</span>
+                                        <span>+{xpRewards[todo.difficulty || 'easy']} XP</span>
+                                    </span>
                                 </div>
-                            )}
+                            </div>
 
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => deleteTodo(todo.id)}
-                                className="h-8 w-8 text-slate-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="shrink-0 h-8 w-8 text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
