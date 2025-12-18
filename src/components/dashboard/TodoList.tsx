@@ -82,27 +82,27 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
 
             {/* Add Task Input with Difficulty Selector */}
             <div className="space-y-3">
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full">
                     <Input
                         value={newTask}
                         onChange={(e) => setNewTask(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && addTodo()}
-                        placeholder="Define new mission objective..."
-                        className="bg-slate-900/60 border-white/10 text-white placeholder:text-slate-600 focus:border-teal-500/50 transition-all font-mono text-sm"
+                        placeholder="Define new mission..."
+                        className="flex-1 min-w-0 bg-slate-900/60 border-white/10 text-white placeholder:text-slate-600 focus:border-teal-500/50 transition-all font-mono text-xs sm:text-sm"
                     />
                     <Button onClick={addTodo} className="shrink-0 bg-teal-600 hover:bg-teal-500 text-white border-0 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
-                        <Plus className="w-4 h-4 mr-1" /> Deploy
+                        <Plus className="w-4 h-4 sm:mr-1" /> <span className="hidden sm:inline">Deploy</span>
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.1em] mr-1">Mission Difficulty:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.1em] mr-1 hidden sm:inline">Difficulty:</span>
                     {(['easy', 'medium', 'hard'] as const).map((d) => (
                         <button
                             key={d}
                             onClick={() => setDifficulty(d)}
                             className={cn(
-                                "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all border",
+                                "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase transition-all border whitespace-nowrap",
                                 difficulty === d
                                     ? d === 'easy' ? "bg-teal-500/20 border-teal-500 text-teal-400"
                                         : d === 'medium' ? "bg-indigo-500/20 border-indigo-500 text-indigo-400"
@@ -110,7 +110,7 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                                     : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
                             )}
                         >
-                            {d} (+{xpRewards[d]} XP)
+                            {d} <span className="hidden sm:inline">(+{xpRewards[d]} XP)</span>
                         </button>
                     ))}
                 </div>
@@ -120,14 +120,14 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {todos.length === 0 ? (
                     <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                        <p className="text-slate-500 text-[10px] font-mono uppercase tracking-[0.2em]">No active missions in sector.</p>
+                        <p className="text-slate-500 text-[10px] font-mono uppercase tracking-[0.2em]">No active missions.</p>
                     </div>
                 ) : (
                     todos.map((todo) => (
                         <div
                             key={todo.id}
                             className={cn(
-                                "relative group flex items-center gap-4 p-4 rounded-xl border transition-all duration-300",
+                                "relative group flex items-center gap-3 p-3 sm:p-4 rounded-xl border transition-all duration-300",
                                 todo.completed
                                     ? "bg-slate-900/40 border-white/5 opacity-60"
                                     : "bg-slate-900/60 border-white/10 hover:border-white/20 hover:bg-slate-900/80"
@@ -136,13 +136,13 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                             <Checkbox
                                 checked={todo.completed}
                                 onCheckedChange={() => toggleTodo(todo.id)}
-                                className="h-5 w-5 border-slate-700 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500"
+                                className="shrink-0 h-5 w-5 border-slate-700 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500"
                             />
 
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
                                     <span className={cn(
-                                        "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border",
+                                        "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border whitespace-nowrap",
                                         todo.difficulty === 'hard' ? "text-pink-400 border-pink-500/20 bg-pink-500/5"
                                             : todo.difficulty === 'medium' ? "text-indigo-400 border-indigo-500/20 bg-indigo-500/5"
                                                 : "text-teal-400 border-teal-500/20 bg-teal-500/5"

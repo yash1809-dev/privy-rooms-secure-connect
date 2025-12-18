@@ -628,10 +628,14 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
           <Icon className="text-white w-10 h-10 drop-shadow-lg" />
         </div>
         <div>
-          <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-white flex items-center gap-6">
-            {title}
-            {!isVisible && <Lock className="w-8 h-8 text-slate-700 animate-pulse" />}
-          </h2>
+          <div className="flex items-center justify-between mb-8 group-hover:transform group-hover:translate-x-2 transition-transform duration-500">
+            <div>
+              <h2 className={cn("text-xl sm:text-2xl md:text-5xl font-black italic tracking-tighter uppercase relative z-10", isVisible ? "text-white" : "text-white/30")}>
+                {title}
+              </h2>
+            </div>
+          </div>
+          {!isVisible && <Lock className="w-8 h-8 text-slate-700 animate-pulse" />}
           <p className={cn("font-mono text-sm tracking-[0.4em] uppercase mt-2 opacity-80", textColors[color])}>{subtitle}</p>
         </div>
       </div>

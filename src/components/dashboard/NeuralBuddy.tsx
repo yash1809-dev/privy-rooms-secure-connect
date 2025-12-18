@@ -272,12 +272,18 @@ export function NeuralBuddy({ status = 'idle' }: NeuralBuddyProps) {
               initial={{ opacity: 0, rotate: -45, scale: 0 }}
               animate={{ opacity: 1, rotate: 135, scale: 1.5 }}
               exit={{ opacity: 0, scale: 0 }}
-              className="absolute -right-8 top-0 z-20"
+              className={cn(
+                "absolute top-0 z-20",
+                position.x > window.innerWidth / 2 ? "-left-8" : "-right-8"
+              )}
             >
               <Sword className="w-10 h-10 text-slate-200 drop-shadow-[0_0_8px_white]" />
               <motion.div
                 animate={{ opacity: [0, 1, 0], scaleX: [0, 2, 0] }}
-                className="absolute top-4 left-0 w-12 h-0.5 bg-white/80 blur-sm"
+                className={cn(
+                  "absolute top-4 w-12 h-0.5 bg-white/80 blur-sm",
+                  position.x > window.innerWidth / 2 ? "right-0" : "left-0"
+                )}
               />
             </motion.div>
           )}
