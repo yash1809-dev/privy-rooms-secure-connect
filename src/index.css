@@ -2,9 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- GEN Z / MODERN UI OVERHAUL --- */
 
 @layer base {
   :root {
@@ -37,7 +40,7 @@ All colors MUST be HSL.
     --ring: 238 70% 60%;
 
     --radius: 0.75rem;
-    
+
     /* Custom design tokens */
     --gradient-hero: linear-gradient(135deg, hsl(238 70% 60%), hsl(187 80% 42%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 40% 98%));
@@ -90,7 +93,7 @@ All colors MUST be HSL.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 238 70% 60%;
-    
+
     --gradient-hero: linear-gradient(135deg, hsl(238 70% 60%), hsl(187 80% 42%));
     --gradient-subtle: linear-gradient(180deg, hsl(222.2 47.4% 11.2%), hsl(217.2 32.6% 17.5%));
     --shadow-smooth: 0 4px 20px -4px hsl(238 70% 60% / 0.25);
@@ -114,22 +117,23 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Responsive Typography */
   h1 {
     font-size: clamp(1.75rem, 5vw + 0.5rem, 2.5rem);
   }
-  
+
   h2 {
     font-size: clamp(1.5rem, 4vw + 0.5rem, 2rem);
   }
-  
+
   h3 {
     font-size: clamp(1.25rem, 3vw + 0.5rem, 1.5rem);
   }
-  
+
   /* Ensure minimum touch target size on mobile */
   @media (max-width: 768px) {
+
     button,
     a {
       min-height: 44px;
@@ -138,3 +142,186 @@ All colors MUST be HSL.
   }
 }
 
+/* --- HIGH-END DASHBOARD ANIMATIONS --- */
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+    filter: blur(10px);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+    filter: blur(15px);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+
+  25% {
+    transform: translateY(-10px) translateX(5px);
+  }
+
+  50% {
+    transform: translateY(0) translateX(10px);
+  }
+
+  75% {
+    transform: translateY(10px) translateX(5px);
+  }
+}
+
+@keyframes terminal-underline {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.hud-sidebar {
+  @apply bg-black/10 backdrop-blur-2xl border-r border-white/5 relative overflow-hidden;
+}
+
+.hud-sidebar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.2), transparent);
+  animation: scanline 4s linear infinite;
+  pointer-events: none;
+}
+
+.glass-card-hover {
+  @apply transition-all duration-500 hover:bg-white/5 hover:border-white/20;
+}
+
+.glass-card-hover:hover {
+  box-shadow: 0 0 30px rgba(20, 184, 166, 0.1);
+}
+
+.glow-orb {
+  @apply absolute rounded-full mix-blend-screen pointer-events-none;
+  animation: glow-pulse 10s ease-in-out infinite, float 20s ease-in-out infinite;
+}
+
+.terminal-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  @apply tracking-tighter;
+}
+
+.terminal-cursor::after {
+  content: "_";
+  animation: terminal-underline 1s step-end infinite;
+}
+
+.cyber-grid {
+  background-image: linear-gradient(rgba(20, 184, 166, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 184, 166, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.data-line {
+  position: absolute;
+  background: linear-gradient(to bottom, transparent, rgba(20, 184, 166, 0.5), transparent);
+  width: 1px;
+  height: 100px;
+  animation: data-flow 3s linear infinite;
+}
+
+@keyframes data-flow {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(1000%);
+    opacity: 0;
+  }
+}
+
+@keyframes glitch-text {
+  0% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+
+  2% {
+    transform: translate(-2px, 2px);
+    text-shadow: 2px 0 #0ff, -2px 0 #f0f;
+  }
+
+  4% {
+    transform: translate(2px, -2px);
+    text-shadow: -2px 0 #0ff, 2px 0 #f0f;
+  }
+
+  6% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+
+  100% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+}
+
+.animate-glitch {
+  animation: glitch-text 4s infinite;
+}

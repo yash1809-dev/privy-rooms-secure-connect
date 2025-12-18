@@ -112,8 +112,8 @@ export function AppLayout() {
         }
     };
 
-    // Show header only on dashboard page
-    const hideHeader = location.pathname !== '/dashboard';
+    // Hide header on dashboard to allow for integrated HUD
+    const hideHeader = location.pathname === '/dashboard';
 
     return (
         <div className="min-h-screen flex flex-col bg-[var(--gradient-subtle)]">
