@@ -46,8 +46,11 @@ export function useChatMessages(groupId: string | undefined) {
             return data as Message[];
         },
         enabled: !!groupId,
-        staleTime: 5 * 60 * 1000, // 5 minutes - prevents refetch on mount if data is fresh
-        gcTime: 15 * 60 * 1000, // 15 minutes (React Query v5) - keeps inactive chat data in cache
+        staleTime: 30 * 1000, // 30 seconds - mark data as stale faster to refetch on return
+        gcTime: 15 * 60 * 1000, // 15 minutes - keeps inactive chat data in cache
+        refetchOnWindowFocus: true, // Refetch when user returns to tab
+        refetchOnMount: 'always', // Always refetch when component mounts (user returns to chat)
+        refetchInterval: false, // Don't use interval, rely on real-time
     });
 
     // Send Message Mutation with Optimistic Update
@@ -239,6 +242,32 @@ export function useChatMessages(groupId: string | undefined) {
             supabase.removeChannel(channel);
         };
     }, [groupId, queryClient]);
+
+    // Refetch messages when user returns to this chat (navigates back from another chat)
+    useEffect(() => {
+        if (!groupId) return;
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[Chat] Tab became visible, refetching messages for group:', groupId);
+                queryClient.invalidateQueries({ queryKey: ['messages', groupId] });
+            }
+        };
+
+        // Refetch immediately when groupId changes (user switched chats)
+        if (!isInitialLoadRef.current) {
+            console.log('[Chat] Switched to group, refetching:', groupId);
+            queryClient.invalidateQueries({ queryKey: ['messages', groupId] });
+        }
+        isInitialLoadRef.current = false;
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [groupId, queryClient]);
+
 
     return {
         messages,
