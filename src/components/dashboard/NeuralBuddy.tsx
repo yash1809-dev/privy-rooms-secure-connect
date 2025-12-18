@@ -99,6 +99,28 @@ export function NeuralBuddy({ status = 'idle' }: NeuralBuddyProps) {
     setTimeout(() => setCurrentThought(null), 3000);
   };
 
+  // Autonomous Roaming Behavior
+  useEffect(() => {
+    if (mood !== 'idle') return;
+
+    const roam = () => {
+      const margin = 100;
+      const randomX = margin + Math.random() * (window.innerWidth - margin * 2);
+      const randomY = margin + Math.random() * (window.innerHeight - margin * 2);
+
+      teleportTo(randomX, randomY, false, false);
+
+      // Random insight during roaming
+      if (Math.random() > 0.7) {
+        setTimeout(() => toggleInsight(), 500);
+      }
+    };
+
+    // Roam every 8-15 seconds
+    const interval = setInterval(roam, 8000 + Math.random() * 7000);
+    return () => clearInterval(interval);
+  }, [mood, teleportTo]);
+
   return (
     <div
       className="fixed z-[9999] pointer-events-none"
@@ -132,11 +154,15 @@ export function NeuralBuddy({ status = 'idle' }: NeuralBuddyProps) {
           {currentThought && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: -60 }}
+              animate={{ opacity: 1, y: -70 }}
               exit={{ opacity: 0 }}
-              className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-950/90 border border-teal-500/30 px-3 py-1.5 rounded-xl text-[10px] font-mono text-teal-400 shadow-2xl backdrop-blur-md"
+              className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none"
             >
-              {currentThought}
+              <div className="relative bg-white px-4 py-2 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.6)] border-2 border-slate-900">
+                <p className="text-[11px] font-bold text-slate-900">{currentThought}</p>
+                {/* Speech bubble tail */}
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-r-2 border-b-2 border-slate-900 rotate-45" />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

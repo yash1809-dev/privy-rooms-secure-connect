@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 interface FocusPlantProps {
@@ -6,198 +6,255 @@ interface FocusPlantProps {
 }
 
 export function FocusPlant({ minutesFocused }: FocusPlantProps) {
-  // --- ENHANCED GROWTH LOGIC ---
-  // We scale things so 0-10 minutes gives immediate glorious feedback.
+  // Growth stages based on time
+  const growth = Math.min(100, (minutesFocused / 120) * 100); // 120 min = full growth
+  const stage =
+    minutesFocused < 5 ? 'seed' :
+      minutesFocused < 20 ? 'sprout' :
+        minutesFocused < 60 ? 'young' : 'mature';
 
-  // 1. COSMIC SEED (0 - 5 mins)
-  // Pulse speed increases as it gets closer to sprouting.
-  const seedScale = 1 + (Math.min(minutesFocused, 5) / 10); // Grows slightly
-  const seedGlow = Math.min(minutesFocused, 5) / 5; // 0 to 1
-
-  // 2. NEON SPROUT (5 - 20 mins)
-  // Appears after 5 mins.
-  const sproutProgress = Math.min(1, Math.max(0, (minutesFocused - 5) / 15));
-
-  // 3. GLOWING TRUNK (20 - 60 mins)
-  const treeProgress = Math.min(1, Math.max(0, (minutesFocused - 20) / 40));
-
-  // 4. ETHEREAL FOLIAGE (40 - 120 mins)
-  const foliageProgress = Math.min(1, Math.max(0, (minutesFocused - 40) / 80));
-
-  // Random particles for "magic" atmosphere
-  const particles = useMemo(() => [...Array(12)].map((_, i) => ({
-    cx: 50 + Math.random() * 100,
-    cy: 50 + Math.random() * 100,
-    r: Math.random() * 2,
-    delay: Math.random() * 5,
-    duration: 3 + Math.random() * 4
-  })), []);
+  const leaves = useMemo(() => {
+    const count = Math.floor((minutesFocused / 10) * 3);
+    return [...Array(Math.min(count, 12))].map((_, i) => ({
+      angle: (i * 360 / count) + (i % 2 * 30),
+      delay: i * 0.1,
+      size: 0.7 + (i % 3) * 0.15
+    }));
+  }, [minutesFocused]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl bg-slate-950 border border-indigo-500/20 shadow-2xl transition-all duration-500 hover:shadow-indigo-500/10 group">
+    <div className="relative w-full max-w-md mx-auto">
+      <div className="relative aspect-square flex items-end justify-center px-8 pb-8">
 
-      {/* --- AMBIENT BACKGROUND --- */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(60,20,100,0.4),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(15,23,42,0.8))]" />
+        {/* Ambient Glow */}
+        <div className={cn(
+          "absolute inset-0 rounded-full blur-3xl transition-all duration-1000",
+          stage === 'seed' ? "bg-amber-500/20" :
+            stage === 'sprout' ? "bg-teal-500/30" :
+              "bg-emerald-500/40"
+        )} />
 
-      {/* Grid Pattern Overlay */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10" />
+        {/* Plant Container */}
+        <div className="relative w-full h-full flex flex-col items-center justify-end">
 
-      <div className="relative z-10 flex flex-col items-center justify-center py-10 px-6 min-h-[300px]">
-
-        {/* --- MAIN SCENE --- */}
-        <div className="relative w-64 h-64 flex items-end justify-center perspective-1000">
-
-          {/* Glowing Platform */}
-          <div className="absolute bottom-4 w-40 h-10 bg-indigo-500/20 blur-xl rounded-full animate-pulse" />
-
-          <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(100,200,255,0.3)]">
+          {/* PLANT POT */}
+          <svg viewBox="0 0 200 280" className="w-full h-full overflow-visible">
             <defs>
-              <linearGradient id="trunkGrad" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="#4f46e5" /> {/* Indigo-600 */}
-                <stop offset="100%" stopColor="#a855f7" /> {/* Purple-500 */}
+              {/* Gradients */}
+              <linearGradient id="potGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#78350f" />
+                <stop offset="100%" stopColor="#44403c" />
               </linearGradient>
-              <linearGradient id="leafGrad" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0%" stopColor="#2dd4bf" /> {/* Teal-400 */}
-                <stop offset="100%" stopColor="#34d399" /> {/* Emerald-400 */}
+              <linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#451a03" />
+                <stop offset="100%" stopColor="#292524" />
               </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+              <linearGradient id="stemGrad" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="#166534" />
+                <stop offset="50%" stopColor="#15803d" />
+                <stop offset="100%" stopColor="#22c55e" />
+              </linearGradient>
+              <radialGradient id="leafGrad">
+                <stop offset="0%" stopColor="#4ade80" />
+                <stop offset="70%" stopColor="#22c55e" />
+                <stop offset="100%" stopColor="#166534" />
+              </radialGradient>
+
+              {/* Filters */}
+              <filter id="shadow">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                <feOffset dx="0" dy="4" result="offsetblur" />
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.3" />
+                </feComponentTransfer>
                 <feMerge>
-                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
             </defs>
 
-            {/* FLOATING PARTICLES */}
-            {particles.map((p, i) => (
-              <circle
-                key={i}
-                cx={p.cx}
-                cy={p.cy}
-                r={p.r}
-                fill="white"
-                className="opacity-20 animate-float"
-                style={{
-                  animation: `float ${p.duration}s infinite ease-in-out`,
-                  animationDelay: `${p.delay}s`
-                }}
-              />
-            ))}
-
-            {/* 1. THE SEED (Cyber Core) */}
-            <g
-              transform="translate(100, 175)"
-              className={cn("transition-all duration-1000 origin-center", sproutProgress > 0.5 && "opacity-0")}
-            >
-              {/* Outer Shell */}
-              <circle r="12" fill="#1e1b4b" stroke="#6366f1" strokeWidth="2" style={{ transform: `scale(${seedScale})` }} />
-              {/* Inner Core Pulsing */}
-              <circle r="6" fill="#818cf8" className="animate-ping" style={{ animationDuration: `${3 - seedGlow * 2}s` }} />
-              <circle r="6" fill="#a5b4fc" style={{ opacity: 0.5 + seedGlow * 0.5 }} />
-            </g>
-
-            {/* 2. THE SPROUT (Neon Arc) */}
-            <g transform="translate(100, 175)" style={{ opacity: sproutProgress }}>
+            {/* POT */}
+            <g filter="url(#shadow)">
+              {/* Pot body */}
               <path
-                d="M0,0 Q0,-20 -10,-30"
-                fill="none"
-                stroke="url(#leafGrad)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                filter="url(#glow)"
-                style={{
-                  strokeDasharray: 40,
-                  strokeDashoffset: 40 - (40 * sproutProgress),
-                  transition: 'stroke-dashoffset 1s ease-out'
-                }}
+                d="M 60 240 L 70 200 L 130 200 L 140 240 Z"
+                fill="url(#potGrad)"
+                stroke="#57534e"
+                strokeWidth="2"
               />
-              <path
-                d="M0,0 Q0,-15 10,-25"
-                fill="none"
-                stroke="url(#leafGrad)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                filter="url(#glow)"
-                style={{
-                  strokeDasharray: 40,
-                  strokeDashoffset: 40 - (40 * sproutProgress * 0.8), // Slightly slower
-                  transition: 'stroke-dashoffset 1.2s ease-out'
-                }}
-              />
+              {/* Pot rim */}
+              <ellipse cx="100" cy="200" rx="35" ry="8" fill="#78350f" stroke="#57534e" strokeWidth="1.5" />
+              <ellipse cx="100" cy="200" rx="32" ry="6" fill="#a16207" opacity="0.3" />
+              {/* Pot base */}
+              <ellipse cx="100" cy="240" rx="25" ry="6" fill="#292524" />
+
+              {/* Pot pattern */}
+              <line x1="70" y1="205" x2="75" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
+              <line x1="100" y1="205" x2="100" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
+              <line x1="130" y1="205" x2="125" y2="235" stroke="#57534e" strokeWidth="1" opacity="0.3" />
             </g>
 
-            {/* 3. THE TRUNK (Cyber Structure) */}
-            <g transform="translate(100, 175)">
-              <path
-                d="M0,0 C-5,-40 5,-80 0,-120"
-                fill="none"
-                stroke="url(#trunkGrad)"
-                strokeWidth={8 * treeProgress}
-                strokeLinecap="round"
-                filter="url(#glow)"
-                pathLength={1}
-                style={{
-                  strokeDasharray: 1,
-                  strokeDashoffset: 1 - treeProgress,
-                  transition: "all 1s ease-out",
-                  opacity: treeProgress > 0 ? 1 : 0
-                }}
-              />
-            </g>
+            {/* SOIL */}
+            <ellipse cx="100" cy="202" rx="30" ry="7" fill="url(#soilGrad)" />
 
-            {/* 4. THE FOLIAGE (Holographic Nodes) */}
-            <g transform="translate(100, 55)" style={{ opacity: foliageProgress, transform: `translate(100px, 55px) scale(${foliageProgress})`, transition: 'all 1s' }}>
-              {/* Main Orb */}
-              <circle r="40" fill="url(#leafGrad)" fillOpacity="0.2" className="animate-pulse" filter="url(#glow)" />
-              <circle r="25" fill="none" stroke="#2dd4bf" strokeWidth="1" className="animate-[spin_10s_linear_infinite]" strokeDasharray="4 4" />
-              <circle r="35" fill="none" stroke="#818cf8" strokeWidth="0.5" className="animate-[spin_15s_linear_infinite_reverse]" />
+            {/* SEED STAGE */}
+            {stage === 'seed' && (
+              <g>
+                <circle
+                  cx="100"
+                  cy="195"
+                  r="5"
+                  fill="#f59e0b"
+                  className="animate-pulse"
+                >
+                  <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="100" cy="195" r="8" fill="none" stroke="#fbbf24" strokeWidth="0.5" opacity="0.3" className="animate-ping" />
+              </g>
+            )}
 
-              {/* Floating Leaves/Data points */}
-              <circle cx="-30" cy="10" r="4" fill="#fff" className="animate-bounce" style={{ animationDelay: '0.1s' }} />
-              <circle cx="30" cy="-20" r="3" fill="#fff" className="animate-bounce" style={{ animationDelay: '0.4s' }} />
-              <circle cx="0" cy="-35" r="5" fill="#fff" className="animate-bounce" style={{ animationDelay: '0.8s' }} />
-            </g>
+            {/* STEM */}
+            {minutesFocused >= 5 && (
+              <g>
+                <path
+                  d={`M 100 195 Q 95 ${195 - growth * 0.8} 100 ${195 - growth}`}
+                  fill="none"
+                  stroke="url(#stemGrad)"
+                  strokeWidth={Math.min(6, 2 + growth / 20)}
+                  strokeLinecap="round"
+                  className="transition-all duration-500"
+                />
+                {/* Stem details */}
+                <path
+                  d={`M 100 ${195 - growth * 0.3} Q 102 ${195 - growth * 0.4} 100 ${195 - growth * 0.5}`}
+                  fill="none"
+                  stroke="#86efac"
+                  strokeWidth="0.5"
+                  opacity="0.5"
+                />
+              </g>
+            )}
+
+            {/* LEAVES */}
+            {minutesFocused >= 10 && leaves.map((leaf, i) => {
+              const stemY = 195 - growth;
+              const leafY = stemY + (i * 8);
+              const isLeft = i % 2 === 0;
+
+              return (
+                <g key={i} opacity={Math.min(1, (minutesFocused - 10 - i * 2) / 5)}>
+                  {/* Leaf */}
+                  <ellipse
+                    cx={100 + (isLeft ? -15 : 15) * leaf.size}
+                    cy={leafY}
+                    rx={12 * leaf.size}
+                    ry={20 * leaf.size}
+                    fill="url(#leafGrad)"
+                    stroke="#15803d"
+                    strokeWidth="1"
+                    transform={`rotate(${isLeft ? -30 : 30} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY})`}
+                    filter="url(#shadow)"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      values={`${isLeft ? -35 : 35} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY};${isLeft ? -25 : 25} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY};${isLeft ? -35 : 35} ${100 + (isLeft ? -15 : 15) * leaf.size} ${leafY}`}
+                      dur={`${3 + leaf.delay}s`}
+                      repeatCount="indefinite"
+                    />
+                  </ellipse>
+                  {/* Leaf vein */}
+                  <line
+                    x1={100}
+                    y1={leafY}
+                    x2={100 + (isLeft ? -15 : 15) * leaf.size}
+                    y2={leafY}
+                    stroke="#86efac"
+                    strokeWidth="0.5"
+                    opacity="0.4"
+                  />
+                </g>
+              );
+            })}
+
+            {/* FLOWERS (mature stage) */}
+            {minutesFocused >= 60 && (
+              <g>
+                {[0, 1, 2].map((i) => (
+                  <g key={i} opacity={Math.min(1, (minutesFocused - 60 - i * 10) / 15)}>
+                    <circle
+                      cx={100 + (i === 1 ? 0 : i === 0 ? -20 : 20)}
+                      cy={80 - growth * 0.3 + i * 5}
+                      r="6"
+                      fill="#fbbf24"
+                      filter="url(#shadow)"
+                    />
+                    {[...Array(5)].map((_, petal) => (
+                      <ellipse
+                        key={petal}
+                        cx={100 + (i === 1 ? 0 : i === 0 ? -20 : 20)}
+                        cy={80 - growth * 0.3 + i * 5}
+                        rx="4"
+                        ry="8"
+                        fill="#fef3c7"
+                        stroke="#f59e0b"
+                        strokeWidth="0.5"
+                        transform={`rotate(${petal * 72} ${100 + (i === 1 ? 0 : i === 0 ? -20 : 20)} ${80 - growth * 0.3 + i * 5})`}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
 
           </svg>
         </div>
 
-        {/* --- HUD STATS --- */}
-        <div className="mt-6 flex flex-col items-center gap-2">
-          <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-teal-400 animate-in fade-in slide-in-from-bottom-2">
-            {minutesFocused < 5 && "Initializing Seed..."}
-            {minutesFocused >= 5 && minutesFocused < 20 && "Sprout Detected"}
-            {minutesFocused >= 20 && minutesFocused < 40 && "Structure Growing"}
-            {minutesFocused >= 40 && "Ecosystem Thriving"}
-          </h3>
-
-          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900/50 border border-slate-800 backdrop-blur-md">
-            <div className="relative w-2 h-2">
-              <div className="absolute inset-0 rounded-full bg-teal-400 animate-ping" />
-              <div className="relative w-full h-full rounded-full bg-teal-500" />
-            </div>
-            <span className="font-mono text-sm text-slate-300">
-              {Math.floor(minutesFocused / 60).toString().padStart(2, '0')}h : {(minutesFocused % 60).toString().padStart(2, '0')}m
-            </span>
-            <span className="text-xs text-slate-500 uppercase tracking-widest">Focus Time</span>
+        {/* Floating particles */}
+        {minutesFocused >= 20 && (
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-emerald-400 rounded-full animate-[float_3s_ease-in-out_infinite]"
+                style={{
+                  left: `${30 + Math.random() * 40}%`,
+                  top: `${20 + Math.random() * 60}%`,
+                  animationDelay: `${i * 0.5}s`,
+                  opacity: 0.6
+                }}
+              />
+            ))}
           </div>
+        )}
+      </div>
 
-          {/* Progress Bar */}
-          <div className="w-64 h-1 mt-4 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.5)]"
-              style={{ width: `${Math.min(100, (minutesFocused / 60) * 100)}%`, transition: 'width 0.5s ease-out' }}
-            />
-          </div>
+      {/* Growth Stats */}
+      <div className="mt-6 text-center space-y-2">
+        <p className={cn(
+          "text-lg font-bold transition-colors",
+          stage === 'seed' ? "text-amber-500" :
+            stage === 'sprout' ? "text-teal-500" :
+              stage === 'young' ? "text-emerald-500" :
+                "text-green-400"
+        )}>
+          {stage === 'seed' && '🌱 Seed Stage'}
+          {stage === 'sprout' && '🌿 Sprouting'}
+          {stage === 'young' && '🪴 Growing Strong'}
+          {stage === 'mature' && '🌸 Fully Bloomed'}
+        </p>
+        <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+          <span className="font-mono">{minutesFocused}m focused</span>
+          <span>•</span>
+          <span>{Math.floor(growth)}% grown</span>
         </div>
-
       </div>
 
       <style>{`
         @keyframes float {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(10px, -20px); }
+          0%, 100% { transform: translateY(0) translateX(0); }
+          50% { transform: translateY(-15px) translateX(5px); }
         }
       `}</style>
     </div>
