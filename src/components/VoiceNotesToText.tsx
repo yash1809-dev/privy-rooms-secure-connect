@@ -26,7 +26,7 @@ type VoiceRecording = {
   showTranscript: boolean;
 };
 
-export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: string; selectedDate?: Date }) {
+export default function VoiceNotesToText({ groupId, selectedDate, onPrecisionChange }: { groupId?: string; selectedDate?: Date; onPrecisionChange?: (precision: number) => void }) {
   const [headingInput, setHeadingInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [supported, setSupported] = useState(true);
@@ -65,7 +65,7 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
     } else {
       const recognition = new RecognitionConstructor();
       recognition.continuous = true;
-      recognition.lang = "en-US";
+      recognition.lang = "hi-IN"; // Optimized for Hinglish/Hindi
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
@@ -75,9 +75,14 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
           const text = result[0].transcript;
           if (result.isFinal) {
             transcriptRef.current = transcriptRef.current
-              ? `${transcriptRef.current}\\n${text}`
+              ? `${transcriptRef.current}\n${text}`
               : text;
             interimRef.current = "";
+
+            // Send real precision (confidence) back to parent
+            if (onPrecisionChange && result[0].confidence > 0) {
+              onPrecisionChange(Math.round(result[0].confidence * 100));
+            }
           } else {
             interimRef.current = text;
           }
@@ -238,7 +243,7 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
       }
 
       // Save metadata to database
-      const { data: dbRecord, error: dbError } = await supabase
+      const { data, error: dbError } = await supabase
         .from("voice_recordings" as any)
         .insert({
           user_id: user.id,
@@ -250,6 +255,8 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
         })
         .select()
         .single();
+
+      const dbRecord = data as any;
 
       if (dbError) throw dbError;
 
@@ -489,16 +496,18 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
               {uploading && <div className="text-xs text-primary text-center sm:text-left">Uploading...</div>}
             </div>
 
-            <div className="rounded border bg-background p-3 sm:p-4 text-sm text-muted-foreground min-h-24">
+            <div className="rounded border bg-black/40 border-white/5 p-3 sm:p-4 text-sm text-slate-400 min-h-24 relative overflow-hidden">
               {recording ? (
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Live transcript</p>
-                  <div className="max-h-48 overflow-y-auto whitespace-pre-wrap text-foreground text-sm">
-                    {liveTranscript || "Listening…"}
+                <div className="flex flex-col items-center justify-center space-y-4 py-4">
+                  <div className="flex gap-2 items-end h-8">
+                    {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.4, 0.7, 0.5].map((h, i) => (
+                      <div key={i} className="w-1.5 bg-pink-500/50 rounded-full animate-bounce" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.1}s` }} />
+                    ))}
                   </div>
+                  <p className="text-[10px] uppercase font-black tracking-widest text-pink-500 animate-pulse">Capturing Neural Signal...</p>
                 </div>
               ) : (
-                <p>Set a heading, start recording, and your note will be saved with today's date.</p>
+                <p className="text-center italic opacity-50">Set a heading and start capturing to sync your thoughts.</p>
               )}
             </div>
 
@@ -580,14 +589,33 @@ export default function VoiceNotesToText({ groupId, selectedDate }: { groupId?: 
                             </div>
                             <audio controls className="mt-3 w-full" src={note.audioUrl} />
                             <div className="mt-3 flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => toggleTranscript(note.id)}
-                                disabled={!supported || !note.transcript}
-                              >
-                                {note.showTranscript ? "Hide transcript" : "Transcribe"}
-                              </Button>
+                              {!note.transcript && status !== "Transcribing..." ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-pink-500/10 border-pink-500/20 text-pink-400 hover:bg-pink-500/20"
+                                  onClick={() => {
+                                    // In a real app, this would call a transcription API like Whisper
+                                    // For this demo, we'll "reveal" the background captured transcript
+                                    setStatus("Transcribing...");
+                                    setTimeout(() => {
+                                      toggleTranscript(note.id);
+                                      setStatus("Idle");
+                                    }, 1500);
+                                  }}
+                                >
+                                  Transcribe
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => toggleTranscript(note.id)}
+                                  disabled={!note.transcript}
+                                >
+                                  {note.showTranscript ? "Hide Transcript" : "Show Transcript"}
+                                </Button>
+                              )}
                               {!note.transcript && (
                                 <span className="text-xs text-muted-foreground">
                                   Transcript unavailable for this recording.

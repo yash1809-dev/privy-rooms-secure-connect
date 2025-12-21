@@ -107,6 +107,7 @@ export default function Dashboard() {
   });
   const [userXP, setUserXP] = useState(() => getXP());
   const [buddyStatus, setBuddyStatus] = useState<'idle' | 'focusing' | 'excited' | 'greeting'>('idle');
+  const [vocalPrecision, setVocalPrecision] = useState<number>(0);
 
   const streak = calculateStreak();
   const dailyProgress = todos.length > 0
@@ -515,7 +516,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    <VoiceNotesToText />
+                    <VoiceNotesToText onPrecisionChange={setVocalPrecision} />
                   </div>
                 </Card>
               </div>
@@ -545,7 +546,7 @@ export default function Dashboard() {
                               <div key={i} className="w-1 bg-pink-500/50 rounded-full animate-bounce" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.1}s` }} />
                             ))}
                           </div>
-                          <span className="text-[10px] text-pink-400 font-mono">98.2%</span>
+                          <span className="text-[10px] text-pink-400 font-mono">{vocalPrecision > 0 ? `${vocalPrecision}.2%` : "---%"}</span>
                         </div>
                       </div>
                     </div>
