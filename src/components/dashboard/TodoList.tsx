@@ -110,7 +110,7 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                                     : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
                             )}
                         >
-                            {d} <span className="hidden sm:inline">(+{xpRewards[d]} XP)</span>
+                            {d} <span>(+{xpRewards[d]} XP)</span>
                         </button>
                     ))}
                 </div>

@@ -99,6 +99,55 @@ export default function Chats() {
     useEffect(() => {
         loadGroups();
         loadCallHistory();
+
+        // REAL-TIME SUBSCRIPTION: Listen for group membership changes
+        const channel = supabase
+            .channel('chat-list-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'group_members',
+                },
+                async (payload) => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user && ((payload.new as any)?.user_id === user.id || (payload.old as any)?.user_id === user.id)) {
+                        console.log("Real-time: Group membership changed, refetching groups");
+                        loadGroups();
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'groups',
+                },
+                () => {
+                    console.log("Real-time: Group details changed, refetching groups");
+                    loadGroups();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'group_messages',
+                },
+                () => {
+                    // Update last message preview when any new message arrives
+                    console.log("Real-time: New message arrived, refetching groups");
+                    loadGroups();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const loadGroups = async () => {

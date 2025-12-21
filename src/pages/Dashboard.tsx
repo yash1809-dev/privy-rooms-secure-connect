@@ -265,12 +265,31 @@ export default function Dashboard() {
                       <Pen className="w-3 h-3" />
                     </Button>
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest text-slate-500">
-                      <span>Sync Status</span>
-                      <span className="text-teal-400">{dailyProgress}%</span>
+                  <div className="space-y-2 pt-1">
+                    <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white">Rank {getProgression(userXP).level}</span>
+                        <span className="text-teal-500/80 font-mono">
+                          {getProgression(userXP).level < 5 ? "Initiate" : getProgression(userXP).level < 15 ? "Veteran" : "Elite"}
+                        </span>
+                      </div>
+                      <span className="text-teal-400 font-mono">{getProgression(userXP).xpInLevel}/1000 XP</span>
                     </div>
-                    <Progress value={dailyProgress} className="h-1.5 bg-slate-800" />
+                    <Progress value={getProgression(userXP).progressToNextLevel} className="h-1.5 bg-slate-800" />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-amber-500/5 border border-amber-500/20">
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">{streak} Day Streak</span>
+                    </div>
+                    <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+                      Sync: <span className="text-indigo-400 font-black">{dailyProgress}%</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <Progress value={dailyProgress} className="h-1 bg-slate-800/50" />
                   </div>
                 </div>
 
