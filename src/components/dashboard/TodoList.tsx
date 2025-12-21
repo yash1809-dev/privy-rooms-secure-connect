@@ -102,7 +102,7 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                             key={d}
                             onClick={() => setDifficulty(d)}
                             className={cn(
-                                "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase transition-all border whitespace-nowrap",
+                                "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase transition-all border whitespace-nowrap flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-1",
                                 difficulty === d
                                     ? d === 'easy' ? "bg-teal-500/20 border-teal-500 text-teal-400"
                                         : d === 'medium' ? "bg-indigo-500/20 border-indigo-500 text-indigo-400"
@@ -110,7 +110,8 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
                                     : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
                             )}
                         >
-                            {d} <span>(+{xpRewards[d]} XP)</span>
+                            <span>{d}</span>
+                            <span className="text-[7px] sm:text-[8px] opacity-80">+{xpRewards[d]} XP</span>
                         </button>
                     ))}
                 </div>
