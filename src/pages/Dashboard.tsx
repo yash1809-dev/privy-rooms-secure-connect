@@ -374,7 +374,7 @@ export default function Dashboard() {
 
         {/* --- MAP CONTENT --- */}
         <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-0 lg:pl-0 lg:pr-12 xl:pr-20">
-          <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-1000">
+          <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-500">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-300 text-[9px] font-mono tracking-[0.2em] uppercase backdrop-blur-sm relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
               <span className="relative flex h-2 w-2">
@@ -817,7 +817,7 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
     <section
       id={id} ref={ref}
       className={cn(
-        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-1000 ease-out p-6 sm:p-10 md:p-16 lg:px-0 lg:py-24 lg:pl-0.5 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
+        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-500 ease-out p-6 sm:p-10 md:p-16 lg:px-0 lg:py-24 lg:pl-0.5 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
         isVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-40 scale-95"
       )}
     >
