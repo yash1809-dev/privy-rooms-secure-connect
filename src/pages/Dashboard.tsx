@@ -8,7 +8,7 @@ import { FocusPlant } from "@/components/dashboard/FocusPlant";
 import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import { TodoList } from "@/components/dashboard/TodoList";
-import { NeuralBuddy } from "@/components/dashboard/NeuralBuddy";
+import { NeuralCouple } from "@/components/dashboard/NeuralCouple";
 import {
   Clock, GraduationCap, Mic, MapPin, Lock, Unlock,
   Map as MapIcon, ChevronRight, Zap, MoreVertical, Image as ImageIcon, RotateCcw,
@@ -639,7 +639,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <NeuralBuddy status={buddyStatus} />
+      <NeuralCouple status={buddyStatus} />
     </div>
   );
 }
