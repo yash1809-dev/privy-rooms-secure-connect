@@ -440,15 +440,15 @@ export default function Dashboard() {
           <MapPath />
 
           <MapZone id="planner-zone" title="Mission Control" subtitle="Daily Operations" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="amber" icon={CheckSquare}>
-            <Card className="glass-card border-amber-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl">
-              <div className="p-8">
-                <div className="flex items-center gap-6 mb-10">
-                  <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                    <CheckSquare className="w-8 h-8" />
+            <Card className="glass-card border-amber-500/20 bg-slate-900/90 glass-card-hover backdrop-blur-xl">
+              <div className="p-3 sm:p-6 md:p-8">
+                <div className="flex items-center gap-3 sm:gap-6 mb-6 sm:mb-10">
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                    <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tight">Operation Grid</h3>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mt-1">Primary Objectives Active</p>
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">Operation Grid</h3>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mt-1">Primary Objectives Active</p>
                   </div>
                 </div>
                 <TodoList todos={todos} setTodos={setTodos} onTaskComplete={handleTaskComplete} />
