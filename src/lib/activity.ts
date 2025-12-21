@@ -53,9 +53,54 @@ export const addXP = (amount: number): number => {
     return newXP;
 };
 
+// Progressive XP system - each level requires more XP than the previous
+// Level 1->2: 1000 XP, Level 2->3: 1100 XP, Level 3->4: 1200 XP, etc.
+export const getXPForLevel = (level: number): number => {
+    // XP needed to level up FROM this level TO the next level
+    return 1000 + (level - 1) * 100;
+};
+
+export const getCumulativeXPForLevel = (level: number): number => {
+    // Total XP needed to REACH this level (starting from level 1 at 0 XP)
+    // Using arithmetic series formula: (n-1) * [900 + 50n]
+    if (level <= 1) return 0;
+    const n = level;
+    return (n - 1) * (900 + 50 * n);
+};
+
 export const getProgression = (xp: number) => {
-    const level = Math.floor(xp / 1000) + 1;
-    const xpInLevel = xp % 1000;
-    const progressToNextLevel = (xpInLevel / 1000) * 100;
-    return { level, xpInLevel, progressToNextLevel };
+    const MAX_LEVEL = 100;
+
+    // Find current level using binary search for efficiency
+    let level = 1;
+    for (let testLevel = 1; testLevel <= MAX_LEVEL; testLevel++) {
+        const xpNeeded = getCumulativeXPForLevel(testLevel + 1);
+        if (xp >= xpNeeded) {
+            level = testLevel + 1;
+        } else {
+            break;
+        }
+    }
+
+    // Cap at max level
+    if (level > MAX_LEVEL) level = MAX_LEVEL;
+
+    // XP at the start of current level
+    const xpAtLevelStart = getCumulativeXPForLevel(level);
+
+    // XP within current level
+    const xpInLevel = xp - xpAtLevelStart;
+
+    // XP needed for next level
+    const xpNeededForNextLevel = level >= MAX_LEVEL ? 0 : getXPForLevel(level);
+
+    // Progress percentage
+    const progressToNextLevel = level >= MAX_LEVEL ? 100 : Math.min(100, (xpInLevel / xpNeededForNextLevel) * 100);
+
+    return {
+        level,
+        xpInLevel,
+        xpNeededForNextLevel,
+        progressToNextLevel
+    };
 };

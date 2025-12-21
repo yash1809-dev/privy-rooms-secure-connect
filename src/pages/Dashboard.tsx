@@ -270,10 +270,10 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         <span className="text-white">Rank {getProgression(userXP).level}</span>
                         <span className="text-teal-500/80 font-mono">
-                          {getProgression(userXP).level < 5 ? "Initiate" : getProgression(userXP).level < 15 ? "Veteran" : "Elite"}
+                          {getProgression(userXP).level < 5 ? "Initiate" : getProgression(userXP).level < 15 ? "Veteran" : getProgression(userXP).level < 30 ? "Elite" : "Master"}
                         </span>
                       </div>
-                      <span className="text-teal-400 font-mono">{getProgression(userXP).xpInLevel}/1000 XP</span>
+                      <span className="text-teal-400 font-mono">{getProgression(userXP).xpInLevel}/{getProgression(userXP).xpNeededForNextLevel} XP</span>
                     </div>
                     <Progress value={getProgression(userXP).progressToNextLevel} className="h-1.5 bg-slate-800" />
                   </div>
@@ -466,7 +466,7 @@ export default function Dashboard() {
 // --- SUB COMPONENTS ---
 
 function DashboardSidebar({ userProfile, dailyProgress, streak, activeZone, teleportTo, unlockedZones, navigate, xp }: any) {
-  const { level, xpInLevel, progressToNextLevel } = getProgression(xp || 0);
+  const { level, xpInLevel, xpNeededForNextLevel, progressToNextLevel } = getProgression(xp || 0);
 
   return (
     <aside className="hidden lg:flex w-80 hud-sidebar flex-col z-50">
@@ -513,7 +513,7 @@ function DashboardSidebar({ userProfile, dailyProgress, streak, activeZone, tele
               </div>
               <div className="flex justify-between text-[7px] font-mono text-slate-600 tracking-wider">
                 <span>{xpInLevel} XP</span>
-                <span>1000 XP</span>
+                <span>{xpNeededForNextLevel} XP</span>
               </div>
             </div>
           </div>
