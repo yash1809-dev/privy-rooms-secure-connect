@@ -24,6 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
@@ -371,7 +372,7 @@ export default function Dashboard() {
         </div>
 
         {/* --- MAP CONTENT --- */}
-        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-3 sm:px-4 md:px-8 max-w-4xl mx-auto">
+        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
           <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-1000">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-300 text-[9px] font-mono tracking-[0.2em] uppercase backdrop-blur-sm relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
@@ -395,17 +396,48 @@ export default function Dashboard() {
           </header>
 
           <MapZone id="focus-zone" title="Focus Sanctuary" subtitle="Regeneration Sector" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="teal" icon={Clock}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
-              <Card className="glass-card p-4 sm:p-6 md:p-8 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl">
-                <FocusTimer
-                  onSessionComplete={handleSessionComplete}
-                  setMinutesFocused={setMinutesFocused}
-                  onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
-                />
-              </Card>
-              <div id="focus-plant-container" className="flex justify-center relative">
-                <div className="absolute inset-0 bg-teal-500/20 blur-[100px] rounded-full opacity-30 animate-pulse" />
-                <FocusPlant minutesFocused={minutesFocused} />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
+              <div className="lg:col-span-7 space-y-8">
+                <Card className="glass-card p-6 sm:p-10 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                    <Zap className="w-24 h-24 text-teal-500" />
+                  </div>
+                  <FocusTimer
+                    onSessionComplete={handleSessionComplete}
+                    setMinutesFocused={setMinutesFocused}
+                    onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
+                  />
+                </Card>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: "Deep Work", desc: "No distractions", icon: Zap },
+                    { label: "Flow State", desc: "Pure immersion", icon: Sparkles },
+                    { label: "Ascension", desc: "Next level focus", icon: Activity }
+                  ].map((item, i) => (
+                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group cursor-default">
+                      <item.icon className="w-5 h-5 text-teal-400 mb-2 group-hover:scale-110 transition-transform" />
+                      <p className="text-[10px] font-black text-white uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[8px] text-slate-500 mt-0.5">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div id="focus-plant-container" className="lg:col-span-5 flex flex-col items-center justify-center p-8 bg-black/20 rounded-[3rem] border border-white/5 relative group min-h-[500px]">
+                <div className="absolute inset-0 bg-teal-500/10 blur-[100px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="relative z-10 text-center space-y-6">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-teal-500 tracking-[0.3em] uppercase">Neural Growth Engine</p>
+                    <h4 className="text-2xl font-black text-white italic tracking-tighter">SYNAPTIC BOTANY</h4>
+                  </div>
+                  <FocusPlant minutesFocused={minutesFocused} />
+                  <div className="pt-4">
+                    <Badge variant="outline" className="bg-teal-500/10 border-teal-500/20 text-teal-400 font-mono text-[9px] px-4 py-1">
+                      HYDRATION: OPTIMAL
+                    </Badge>
+                  </div>
+                </div>
               </div>
             </div>
           </MapZone>
@@ -413,47 +445,204 @@ export default function Dashboard() {
           <MapPath />
 
           <MapZone id="academic-zone" title="Academic Hub" subtitle="Intel Data-Lake" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="indigo" icon={GraduationCap}>
-            <Card className="glass-card border-indigo-500/20 bg-slate-900/40 glass-card-hover min-h-[500px] overflow-hidden backdrop-blur-xl">
-              <Timetable />
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+              <div className="lg:col-span-8">
+                <Card className="glass-card border-indigo-500/20 bg-slate-900/40 glass-card-hover min-h-[600px] overflow-hidden backdrop-blur-xl relative">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                    <GraduationCap className="w-64 h-64 text-indigo-500" />
+                  </div>
+                  <Timetable />
+                </Card>
+              </div>
+
+              <div className="lg:col-span-4 space-y-6">
+                <div className="p-8 bg-indigo-500/5 border border-indigo-500/10 rounded-[3rem] space-y-6 relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-20">
+                    <Activity className="w-8 h-8 text-indigo-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-indigo-400 tracking-[0.3em] uppercase">Semester Pulse</p>
+                    <h4 className="text-xl font-black text-white italic tracking-tighter">ACADEMIC ANALYTICS</h4>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { label: "Attendance", level: 85, color: "bg-teal-500" },
+                      { label: "Credits", level: 60, color: "bg-indigo-500" },
+                      { label: "Performance", level: 92, color: "bg-pink-500" }
+                    ].map((stat, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          <span>{stat.label}</span>
+                          <span>{stat.level}%</span>
+                        </div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <div className={cn("h-full transition-all duration-1000", stat.color)} style={{ width: `${stat.level}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Exam Mode", active: true },
+                    { label: "Auto Sync", active: false }
+                  ].map((toggle, i) => (
+                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-4">
+                      <p className="text-[10px] font-black text-slate-500 uppercase">{toggle.label}</p>
+                      <Switch checked={toggle.active} />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-6 glass-card border-white/5 bg-slate-900/60 rounded-[2.5rem] relative group cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                      <ShieldCheck className="w-6 h-6 text-indigo-400" />
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-black text-white uppercase tracking-tight">Vault Secure</h5>
+                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Academic Records Encrypted</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </MapZone>
 
           <MapPath />
 
           <MapZone id="broadcast-zone" title="Broadcast Tower" subtitle="Signal Relay" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="pink" icon={Mic}>
-            <Card className="glass-card border-pink-500/20 bg-slate-900/40 glass-card-hover min-h-[400px] backdrop-blur-xl overflow-hidden">
-              <div className="p-3 sm:p-6 md:p-8">
-                <div className="flex items-center gap-3 sm:gap-6 mb-6 sm:mb-10">
-                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.1)]">
-                    <Mic className="w-6 h-6 sm:w-8 sm:h-8" />
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 lg:gap-16 items-start">
+              <div className="xl:col-span-8 flex flex-col gap-8">
+                <Card className="glass-card border-pink-500/20 bg-slate-900/40 glass-card-hover min-h-[400px] backdrop-blur-xl overflow-hidden">
+                  <div className="p-3 sm:p-6 md:p-8 lg:p-12">
+                    <div className="flex items-center gap-3 sm:gap-6 mb-8 lg:mb-12">
+                      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_20px_rgba(236,72,153,0.1)]">
+                        <Mic className="w-8 h-8 sm:w-12 sm:h-12" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none">Signal Processor</h3>
+                        <p className="text-[10px] lg:text-xs text-slate-500 uppercase font-bold tracking-[0.3em] mt-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" /> Status: Neural Stream Active
+                        </p>
+                      </div>
+                    </div>
+                    <VoiceNotesToText />
                   </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">Signal Processor</h3>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mt-1">Status: Listening...</p>
+                </Card>
+              </div>
+
+              <div className="xl:col-span-4 space-y-8">
+                <div className="p-8 bg-black/40 rounded-[2.5rem] border border-white/5 space-y-6 relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent" />
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Signal Stats</p>
+                      <Activity className="w-4 h-4 text-pink-400 opacity-50" />
+                    </div>
+
+                    <div className="space-y-4">
+                      {[
+                        { label: "Sync Rate", val: "98.4%", color: "text-pink-400" },
+                        { label: "Neural Latency", val: "12ms", color: "text-indigo-400" },
+                        { label: "Stream Quality", val: "UHQ", color: "text-teal-400" }
+                      ].map((stat, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{stat.label}</span>
+                          <span className={cn("text-xs font-mono font-black", stat.color)}>{stat.val}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <VoiceNotesToText />
+
+                <div className="p-8 glass-card border-white/10 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] relative group cursor-pointer overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                    <Sparkles className="w-16 h-16 text-indigo-400" />
+                  </div>
+                  <div className="relative z-10 space-y-2">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Upgrade Hub</p>
+                    <h5 className="text-xl font-black text-white italic">Neural Boost</h5>
+                    <p className="text-[9px] text-slate-500 leading-relaxed uppercase tracking-tight">Enhance your signal relay with upgraded synaptic processors and quantum encryption layers.</p>
+                  </div>
+                </div>
               </div>
-            </Card>
+            </div>
           </MapZone>
 
           <MapPath />
 
           <MapZone id="planner-zone" title="Mission Control" subtitle="Daily Operations" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="amber" icon={CheckSquare}>
-            <Card className="glass-card border-amber-500/20 bg-slate-900/90 glass-card-hover backdrop-blur-xl">
-              <div className="p-3 sm:p-6 md:p-8">
-                <div className="flex items-center gap-3 sm:gap-6 mb-6 sm:mb-10">
-                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                    <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
+              <div className="lg:col-span-7">
+                <Card className="glass-card border-amber-500/20 bg-slate-900/90 glass-card-hover backdrop-blur-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+                    <CheckSquare className="w-48 h-48 text-amber-500" />
                   </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">Operation Grid</h3>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mt-1">Primary Objectives Active</p>
+                  <div className="p-3 sm:p-6 md:p-10 relative z-10">
+                    <div className="flex items-center gap-3 sm:gap-6 mb-8 lg:mb-12">
+                      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-transform group-hover:scale-105">
+                        <CheckSquare className="w-8 h-8 sm:w-12 sm:h-12" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none">Operation Grid</h3>
+                        <p className="text-[10px] lg:text-xs text-slate-400 uppercase font-bold tracking-[0.3em] mt-2">Primary Objectives Matrix</p>
+                      </div>
+                    </div>
+                    <TodoList todos={todos} setTodos={setTodos} onTaskComplete={handleTaskComplete} />
+                  </div>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-5 space-y-8">
+                <div className="p-10 rounded-[3rem] bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border border-amber-500/10 space-y-10">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-amber-500 tracking-[0.3em] uppercase text-right">Operational Status</p>
+                    <h4 className="text-3xl font-black text-white italic tracking-tighter text-right leading-none">STRATEGIC<br />OVERVIEW</h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="p-6 rounded-3xl bg-black/40 border border-white/5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Efficiency Rating</span>
+                        <Zap className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div className="text-4xl font-black text-white italic tracking-tighter">94%</div>
+                      <Progress value={94} className="h-1 bg-white/5" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-6 rounded-3xl bg-white/5 border border-white/5 space-y-2">
+                        <p className="text-[9px] font-black text-slate-500 uppercase">Completed</p>
+                        <p className="text-2xl font-black text-white">{todos.filter(t => t.completed).length}</p>
+                      </div>
+                      <div className="p-6 rounded-3xl bg-white/5 border border-white/5 space-y-2">
+                        <p className="text-[9px] font-black text-slate-500 uppercase">Pending</p>
+                        <p className="text-2xl font-black text-amber-400">{todos.filter(t => !t.completed).length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-full bg-white/5 border border-white/5 flex items-center justify-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Neural Link Established</span>
                   </div>
                 </div>
-                <TodoList todos={todos} setTodos={setTodos} onTaskComplete={handleTaskComplete} />
+
+                <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 p-8 bg-slate-900/60">
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Sector Bonus</p>
+                      <h5 className="text-lg font-black text-white">Focus Catalyst</h5>
+                    </div>
+                    <Sparkles className="w-6 h-6 text-teal-400" />
+                  </div>
+                </div>
               </div>
-            </Card>
+            </div>
           </MapZone>
         </div>
       </div>
@@ -636,7 +825,7 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
     <section
       id={id} ref={ref}
       className={cn(
-        "min-h-[90vh] flex flex-col justify-center transition-all duration-1000 ease-out p-10 md:p-20 rounded-[3rem] border border-white/5 mb-40 relative group overflow-hidden",
+        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-1000 ease-out p-6 sm:p-10 md:p-16 lg:p-24 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
         isVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-40 scale-95"
       )}
     >
