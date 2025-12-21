@@ -372,7 +372,7 @@ export default function Dashboard() {
         </div>
 
         {/* --- MAP CONTENT --- */}
-        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-0 lg:pl-0 lg:pr-12 xl:pr-20">
           <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-1000">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-300 text-[9px] font-mono tracking-[0.2em] uppercase backdrop-blur-sm relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
@@ -455,55 +455,41 @@ export default function Dashboard() {
                 </Card>
               </div>
 
-              <div className="lg:col-span-4 space-y-6">
+              <div className="lg:col-span-4 space-y-6 lg:pr-8">
                 <div className="p-8 bg-indigo-500/5 border border-indigo-500/10 rounded-[3rem] space-y-6 relative group overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 opacity-20">
                     <Activity className="w-8 h-8 text-indigo-400" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-[10px] font-mono text-indigo-400 tracking-[0.3em] uppercase">Semester Pulse</p>
-                    <h4 className="text-xl font-black text-white italic tracking-tighter">ACADEMIC ANALYTICS</h4>
+                    <p className="text-[10px] font-mono text-indigo-400 tracking-[0.3em] uppercase">Intelligence Metrics</p>
+                    <h4 className="text-xl font-black text-white italic tracking-tighter">DATA SYNTHESIS</h4>
                   </div>
 
                   <div className="space-y-4">
                     {[
-                      { label: "Attendance", level: 85, color: "bg-teal-500" },
-                      { label: "Credits", level: 60, color: "bg-indigo-500" },
-                      { label: "Performance", level: 92, color: "bg-pink-500" }
+                      { label: "Focus Duration", value: `${minutesFocused}m`, sub: "Active session" },
+                      { label: "Neural Rank", value: `LVL ${getProgression(userXP).level}`, sub: getProgression(userXP).level < 15 ? "Veteran" : "Elite" },
+                      { label: "Daily Streak", value: `${streak}d`, sub: "Consecutive sync" }
                     ].map((stat, i) => (
-                      <div key={i} className="space-y-1.5">
-                        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          <span>{stat.label}</span>
-                          <span>{stat.level}%</span>
+                      <div key={i} className="flex justify-between items-end p-4 bg-white/5 rounded-2xl border border-white/5 transition-colors hover:bg-white/10">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                          <p className="text-xs text-slate-400 uppercase font-bold tracking-tight">{stat.sub}</p>
                         </div>
-                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <div className={cn("h-full transition-all duration-1000", stat.color)} style={{ width: `${stat.level}%` }} />
-                        </div>
+                        <div className="text-xl font-black text-white italic tracking-tighter">{stat.value}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Exam Mode", active: true },
-                    { label: "Auto Sync", active: false }
-                  ].map((toggle, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-4">
-                      <p className="text-[10px] font-black text-slate-500 uppercase">{toggle.label}</p>
-                      <Switch checked={toggle.active} />
-                    </div>
-                  ))}
-                </div>
-
                 <div className="p-6 glass-card border-white/5 bg-slate-900/60 rounded-[2.5rem] relative group cursor-pointer">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:scale-110 transition-transform">
-                      <ShieldCheck className="w-6 h-6 text-indigo-400" />
+                      <Sparkles className="w-6 h-6 text-indigo-400" />
                     </div>
                     <div>
-                      <h5 className="text-sm font-black text-white uppercase tracking-tight">Vault Secure</h5>
-                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Academic Records Encrypted</p>
+                      <h5 className="text-sm font-black text-white uppercase tracking-tight">Academic Pulse</h5>
+                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">System optimizing for peak performance</p>
                     </div>
                   </div>
                 </div>
@@ -535,37 +521,45 @@ export default function Dashboard() {
               </div>
 
               <div className="xl:col-span-4 space-y-8">
-                <div className="p-8 bg-black/40 rounded-[2.5rem] border border-white/5 space-y-6 relative overflow-hidden group">
+                <div className="p-8 bg-black/40 rounded-[2.5rem] border border-white/5 space-y-6 relative overflow-hidden group lg:mr-8">
                   <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent" />
                   <div className="relative z-10 space-y-6">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Signal Stats</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Processing Node</p>
                       <Activity className="w-4 h-4 text-pink-400 opacity-50" />
                     </div>
 
                     <div className="space-y-4">
-                      {[
-                        { label: "Sync Rate", val: "98.4%", color: "text-pink-400" },
-                        { label: "Neural Latency", val: "12ms", color: "text-indigo-400" },
-                        { label: "Stream Quality", val: "UHQ", color: "text-teal-400" }
-                      ].map((stat, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{stat.label}</span>
-                          <span className={cn("text-xs font-mono font-black", stat.color)}>{stat.val}</span>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Neural Status</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                          <span className="text-[10px] text-white font-mono">ENCODING ACTIVE</span>
                         </div>
-                      ))}
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Vocal Precision</p>
+                        <div className="flex justify-between items-end">
+                          <div className="flex gap-1 items-end h-6">
+                            {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8].map((h, i) => (
+                              <div key={i} className="w-1 bg-pink-500/50 rounded-full animate-bounce" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.1}s` }} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-pink-400 font-mono">98.2%</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-8 glass-card border-white/10 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] relative group cursor-pointer overflow-hidden">
+                <div className="p-8 glass-card border-white/10 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] relative group cursor-pointer overflow-hidden lg:mr-8">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <Sparkles className="w-16 h-16 text-indigo-400" />
+                    <Mic className="w-16 h-16 text-indigo-400" />
                   </div>
                   <div className="relative z-10 space-y-2">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Upgrade Hub</p>
-                    <h5 className="text-xl font-black text-white italic">Neural Boost</h5>
-                    <p className="text-[9px] text-slate-500 leading-relaxed uppercase tracking-tight">Enhance your signal relay with upgraded synaptic processors and quantum encryption layers.</p>
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Voice Capture</p>
+                    <h5 className="text-xl font-black text-white italic">Neural Relay</h5>
+                    <p className="text-[9px] text-slate-500 leading-relaxed uppercase tracking-tight">Automatic transcription bridge connecting spoken intelligence to the core data-lake.</p>
                   </div>
                 </div>
               </div>
@@ -596,49 +590,46 @@ export default function Dashboard() {
                 </Card>
               </div>
 
-              <div className="lg:col-span-5 space-y-8">
+              <div className="lg:col-span-5 space-y-8 lg:pr-8">
                 <div className="p-10 rounded-[3rem] bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border border-amber-500/10 space-y-10">
                   <div className="space-y-2">
-                    <p className="text-[10px] font-mono text-amber-500 tracking-[0.3em] uppercase text-right">Operational Status</p>
-                    <h4 className="text-3xl font-black text-white italic tracking-tighter text-right leading-none">STRATEGIC<br />OVERVIEW</h4>
+                    <p className="text-[10px] font-mono text-amber-500 tracking-[0.3em] uppercase text-right">Mission Overview</p>
+                    <h4 className="text-3xl font-black text-white italic tracking-tighter text-right leading-none">OBJECTIVE<br />SUMMARY</h4>
                   </div>
 
                   <div className="grid grid-cols-1 gap-6">
                     <div className="p-6 rounded-3xl bg-black/40 border border-white/5 space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Efficiency Rating</span>
-                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Completion Rate</span>
+                        <Activity className="w-4 h-4 text-amber-400" />
                       </div>
-                      <div className="text-4xl font-black text-white italic tracking-tighter">94%</div>
-                      <Progress value={94} className="h-1 bg-white/5" />
+                      <div className="text-4xl font-black text-white italic tracking-tighter">
+                        {todos.length > 0 ? Math.round((todos.filter(t => t.completed).length / todos.length) * 100) : 0}%
+                      </div>
+                      <Progress value={todos.length > 0 ? (todos.filter(t => t.completed).length / todos.length) * 100 : 0} className="h-1 bg-white/5" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-6 rounded-3xl bg-white/5 border border-white/5 space-y-2">
-                        <p className="text-[9px] font-black text-slate-500 uppercase">Completed</p>
+                        <p className="text-[9px] font-black text-slate-500 uppercase">Successful</p>
                         <p className="text-2xl font-black text-white">{todos.filter(t => t.completed).length}</p>
                       </div>
                       <div className="p-6 rounded-3xl bg-white/5 border border-white/5 space-y-2">
-                        <p className="text-[9px] font-black text-slate-500 uppercase">Pending</p>
+                        <p className="text-[9px] font-black text-slate-500 uppercase">Active</p>
                         <p className="text-2xl font-black text-amber-400">{todos.filter(t => !t.completed).length}</p>
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-4 rounded-full bg-white/5 border border-white/5 flex items-center justify-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Neural Link Established</span>
-                  </div>
                 </div>
 
-                <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 p-8 bg-slate-900/60">
+                <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 p-8 bg-slate-900/60 lg:mr-8">
                   <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10 flex items-center justify-between">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Sector Bonus</p>
-                      <h5 className="text-lg font-black text-white">Focus Catalyst</h5>
+                      <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Task Status</p>
+                      <h5 className="text-lg font-black text-white">Grid Mastery</h5>
                     </div>
-                    <Sparkles className="w-6 h-6 text-teal-400" />
+                    <CheckSquare className="w-6 h-6 text-teal-400" />
                   </div>
                 </div>
               </div>
@@ -825,7 +816,7 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
     <section
       id={id} ref={ref}
       className={cn(
-        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-1000 ease-out p-6 sm:p-10 md:p-16 lg:p-24 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
+        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-1000 ease-out p-6 sm:p-10 md:p-16 lg:px-0 lg:py-24 lg:pl-0.5 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
         isVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-40 scale-95"
       )}
     >
