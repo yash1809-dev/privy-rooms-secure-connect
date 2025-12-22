@@ -23,6 +23,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Features = lazy(() => import("./pages/Features"));
 const Room = lazy(() => import("./pages/Room"));
 const Group = lazy(() => import("./pages/Group"));
+const SpotifyAuthCallback = lazy(() => import("./components/spotify/SpotifyAuthCallback").then(m => ({ default: m.SpotifyAuthCallback })));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +58,7 @@ const App = () => (
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/features" element={<Features />} />
+                <Route path="/auth/spotify/callback" element={<SpotifyAuthCallback />} />
 
                 {/* Authenticated routes with persistent layout */}
                 <Route element={<AuthGuard><AppLayout /></AuthGuard>}>

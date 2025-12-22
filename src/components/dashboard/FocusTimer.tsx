@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
+import { useSpotifyPlayer } from "@/hooks/useSpotifyPlayer";
+import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
+import { SpotifyConnectButton } from "@/components/spotify/SpotifyConnectButton";
+import { SpotifyPlaylistSelector } from "@/components/spotify/SpotifyPlaylistSelector";
+import { SpotifyPlayer } from "@/components/spotify/SpotifyPlayer";
+import { NowPlaying } from "@/components/spotify/NowPlaying";
+import { play as spotifyPlay } from "@/lib/spotify";
 
 interface FocusTimerProps {
     onSessionComplete: (minutes: number) => void;
@@ -34,6 +43,32 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
     const secondsFocusedRef = useRef(0);
 
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Spotify integration
+    const spotifyAuth = useSpotifyAuth();
+    const spotifyPlayer = useSpotifyPlayer({ enabled: spotifyAuth.isConnected });
+    const { data: playlists, isLoading: isLoadingPlaylists } = useSpotifyPlaylists(spotifyAuth.isConnected);
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+
+    // Handle playlist selection and start playback
+    const handlePlaylistSelect = async (playlistId: string) => {
+        setSelectedPlaylistId(playlistId);
+
+        if (spotifyPlayer.deviceId && spotifyPlayer.isReady) {
+            try {
+                const playlist = playlists?.find(p => p.id === playlistId);
+                if (playlist) {
+                    await spotifyPlay(spotifyPlayer.deviceId, playlist.tracks.href);
+                    toast.success("Playing playlist", {
+                        description: playlist.name,
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to start playback:", error);
+                toast.error("Failed to start playback. Make sure you have Spotify Premium.");
+            }
+        }
+    };
 
     useEffect(() => {
         if (isActive && timeLeft > 0) {
@@ -205,6 +240,83 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                 <Button variant="outline" onClick={() => setPreset(parseInt(customMinutes) * 60, "Custom Session")} className="bg-background/60 backdrop-blur-sm">
                     Set Custom
                 </Button>
+            </div>
+
+            {/* Spotify Integration */}
+            <div className="w-full max-w-md space-y-4 pt-6">
+                <Separator className="bg-white/10" />
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-teal-400 uppercase tracking-widest [text-shadow:_0_2px_8px_rgb(0_0_0_/_80%)]">
+                            Focus Music 🎵
+                        </p>
+                        {spotifyAuth.isConnected && spotifyPlayer.isReady && (
+                            <Badge variant="outline" className="bg-teal-500/10 border-teal-500/20 text-teal-400 text-[9px]">
+                                Player Ready
+                            </Badge>
+                        )}
+                    </div>
+
+                    {!spotifyAuth.isConnected ? (
+                        <div className="space-y-3">
+                            <SpotifyConnectButton
+                                isConnected={spotifyAuth.isConnected}
+                                isLoading={spotifyAuth.isLoading}
+                                onConnect={spotifyAuth.connect}
+                                onDisconnect={spotifyAuth.disconnect}
+                            />
+                            <p className="text-xs text-center text-slate-500">
+                                Connect Spotify to play music while you focus
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                            <SpotifyConnectButton
+                                isConnected={spotifyAuth.isConnected}
+                                isLoading={spotifyAuth.isLoading}
+                                onConnect={spotifyAuth.connect}
+                                onDisconnect={spotifyAuth.disconnect}
+                            />
+
+                            {spotifyPlayer.isReady ? (
+                                <>
+                                    {spotifyPlayer.currentTrack && (
+                                        <NowPlaying
+                                            track={spotifyPlayer.currentTrack}
+                                            isPlaying={!spotifyPlayer.isPaused}
+                                        />
+                                    )}
+
+                                    <SpotifyPlaylistSelector
+                                        playlists={playlists || []}
+                                        isLoading={isLoadingPlaylists}
+                                        selectedPlaylistId={selectedPlaylistId}
+                                        onSelectPlaylist={handlePlaylistSelect}
+                                    />
+
+                                    {selectedPlaylistId && (
+                                        <SpotifyPlayer
+                                            isPaused={spotifyPlayer.isPaused}
+                                            position={spotifyPlayer.position}
+                                            duration={spotifyPlayer.duration}
+                                            onTogglePlay={spotifyPlayer.togglePlay}
+                                            onNext={spotifyPlayer.next}
+                                            onPrevious={spotifyPlayer.previous}
+                                            onSeek={spotifyPlayer.seek}
+                                            onVolumeChange={spotifyPlayer.setVolume}
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <div className="flex items-center justify-center p-4 text-xs text-slate-500">
+                                    <div className="animate-spin mr-2">⏳</div>
+                                    Initializing Spotify player...
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
