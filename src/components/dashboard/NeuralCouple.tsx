@@ -382,12 +382,12 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
         <motion.div
             drag
             dragMomentum={false}
-            dragElastic={0.05}
+            dragElastic={0}
             dragConstraints={{
-                left: -character.position.x + 10,
-                right: window.innerWidth - character.position.x - 70,
-                top: -character.position.y + 10,
-                bottom: window.innerHeight - character.position.y - 120
+                left: -character.position.x + 5,
+                right: window.innerWidth - character.position.x - 65,
+                top: -character.position.y + 5,
+                bottom: window.innerHeight - character.position.y - 125
             }}
             onDragStart={onDragStart}
             onDrag={(e, info) => onDrag(info)}
@@ -457,19 +457,23 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
                     )}
 
-                    {/* Normal, Handsome Hair Design */}
+                    {/* Realistic Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Clean Hair Base */}
-                            <path d="M14 18 Q28 -2 42 18 L40 24 L16 24 Z" fill={hairColor} />
-                            {/* Softer side volume */}
-                            <path d="M14 18 Q10 24 16 28" fill={hairColor} />
-                            <path d="M42 18 Q46 24 40 28" fill={hairColor} />
+                            {/* Layered strands for realism */}
+                            <path d="M14 18 Q28 -4 42 18" fill={hairColor} />
+                            <path d="M12 20 Q16 14 22 18" fill={hairColor} />
+                            <path d="M34 18 Q40 14 44 20" fill={hairColor} />
 
-                            {/* Side-swept handsome bangs */}
-                            <path d="M18 18 Q24 28 32 20" fill={hairColor} />
-                            <path d="M26 18 Q32 26 40 18" fill={hairColor} />
-                            <path d="M16 20 Q20 32 26 18" fill={hairColor} />
+                            {/* Wispy tips and bangs */}
+                            <path d="M16 18 C18 24 22 28 24 20" fill={hairColor} />
+                            <path d="M22 18 C24 30 28 32 32 18" fill={hairColor} />
+                            <path d="M30 18 C34 28 38 24 40 18" fill={hairColor} />
+
+                            {/* Top volume strands */}
+                            <path d="M20 12 Q28 2 36 12" fill={hairColor} />
+                            <path d="M18 14 L14 8 Q20 10 24 16" fill={hairColor} />
+                            <path d="M38 14 L42 8 Q36 10 32 16" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
