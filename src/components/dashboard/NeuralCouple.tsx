@@ -380,12 +380,24 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
 
     return (
         <motion.div
-            drag dragMomentum={false} dragElastic={0}
+            drag
+            dragMomentum={false}
+            dragElastic={0.05}
+            dragConstraints={{
+                left: -character.position.x + 10,
+                right: window.innerWidth - character.position.x - 70,
+                top: -character.position.y + 10,
+                bottom: window.innerHeight - character.position.y - 120
+            }}
             onDragStart={onDragStart}
             onDrag={(e, info) => onDrag(info)}
             onDragEnd={onDragEnd}
             className="fixed z-[9999] cursor-grab active:cursor-grabbing touch-none select-none"
-            style={{ left: character.position.x, top: character.position.y, transition: character.isDragging ? 'none' : 'left 0.8s ease-out, top 0.8s ease-out' }}
+            style={{
+                left: character.position.x,
+                top: character.position.y,
+                transition: character.isDragging ? 'none' : 'left 0.8s ease-out, top 0.8s ease-out'
+            }}
         >
             <motion.div
                 animate={{ y: character.mood === 'walking' ? [0, -4, 0] : [0, -2, 0], scale: character.isDragging ? 1.1 : 1 }}
@@ -448,15 +460,18 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                     {/* Modern Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Sharp masculine hair for Shadow with more front volume */}
-                            <path d="M12 18 Q28 -4 44 18 Q40 10 28 8 Q16 10 12 18" fill={hairColor} />
-                            <path d="M16 18 L16 28 L24 22" fill={hairColor} /> {/* Structured side cut */}
-                            <path d="M40 18 L40 28 L32 22" fill={hairColor} /> {/* Structured side cut */}
-
-                            {/* More front bangs to fix "baldness" */}
-                            <path d="M18 16 L24 28 L28 20" fill={hairColor} />
-                            <path d="M24 16 L28 30 L32 16" fill={hairColor} />
-                            <path d="M28 16 L34 27 L38 16" fill={hairColor} />
+                            {/* Base Volume */}
+                            <path d="M14 16 Q28 -4 42 16 L40 24 L16 24 Z" fill={hairColor} />
+                            {/* Layered Spikes (Anime Style) */}
+                            <path d="M10 16 L4 8 L18 14" fill={hairColor} />
+                            <path d="M46 16 L52 8 L38 14" fill={hairColor} />
+                            <path d="M14 6 L20 -4 L26 8" fill={hairColor} />
+                            <path d="M30 6 L36 -4 L42 8" fill={hairColor} />
+                            <path d="M22 2 L28 -8 L34 2" fill={hairColor} />
+                            {/* Front Bangs (V-shape to break forehead line) */}
+                            <path d="M16 18 L22 34 L28 20" fill={hairColor} />
+                            <path d="M22 18 L28 36 L34 18" fill={hairColor} />
+                            <path d="M28 20 L34 34 L40 20" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
