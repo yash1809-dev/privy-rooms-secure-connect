@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { SpotifyTokens, SpotifyUser } from "@/types/spotify";
+import type { SpotifyTokens, SpotifyUser, SpotifyPlaybackState } from "@/types/spotify";
 
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
@@ -249,6 +249,10 @@ export const spotifyApiRequest = async <T>(
 
 export const getCurrentUser = async (): Promise<SpotifyUser & { product: string }> => {
     return spotifyApiRequest('/me');
+};
+
+export const getPlaybackState = async (): Promise<SpotifyPlaybackState | null> => {
+    return spotifyApiRequest('/me/player');
 };
 
 // Playback control functions

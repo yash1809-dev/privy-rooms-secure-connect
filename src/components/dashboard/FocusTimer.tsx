@@ -304,6 +304,16 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                                     <p className="text-xs text-amber-200">
                                         Free Spotify accounts can't play directly in the browser due to Spotify limitations.
                                     </p>
+
+                                    {/* Show Now Playing even for Free users (Read Only) */}
+                                    {spotifyPlayer.currentTrack && (
+                                        <div className="bg-black/20 rounded-lg p-2 mb-2">
+                                            <NowPlaying
+                                                track={spotifyPlayer.currentTrack}
+                                                isPlaying={!spotifyPlayer.isPaused}
+                                            />
+                                        </div>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="sm"

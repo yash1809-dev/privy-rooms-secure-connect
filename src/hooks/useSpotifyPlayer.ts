@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getValidAccessToken, getCurrentUser } from "@/lib/spotify";
+import { getValidAccessToken, getCurrentUser, getPlaybackState } from "@/lib/spotify";
 import type { SpotifyPlayer, SpotifyWebPlaybackState } from "@/types/spotify";
 
 interface UseSpotifyPlayerOptions {
@@ -148,6 +148,39 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         }
     };
 
+    // Poll for playback state (Read-Only Mode for Free users / Remote play)
+    useEffect(() => {
+        if (!enabled) return;
+
+        const pollState = async () => {
+            try {
+                const state = await getPlaybackState();
+
+                // If we found an active state
+                if (state && state.item) {
+                    // If playing on ANOTHER device, or we are in error mode (Free tier), update UI
+                    // Note: We prioritize SDK state if it's active and playing on THIS device
+                    if (error || (state.device?.id !== deviceId)) {
+                        setCurrentTrack(state.item);
+                        setIsPaused(state.is_playing === false);
+                        setDuration(state.item.duration_ms);
+                        setPosition(state.progress_ms);
+                    }
+                } else if (!isReady && !error) {
+                    // Nothing playing and not ready
+                    setCurrentTrack(null);
+                }
+            } catch (e) {
+                // Ignore polling errors
+            }
+        };
+
+        const interval = setInterval(pollState, 5000);
+        pollState(); // Initial run
+
+        return () => clearInterval(interval);
+    }, [enabled, deviceId, isReady, error]);
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
@@ -160,8 +193,11 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
     // Control functions
     const togglePlay = useCallback(async () => {
-        if (!player) return;
-        await player.togglePlay();
+        if (player) {
+            await player.togglePlay();
+        } else {
+            // TODO: Remote control fallback could go here
+        }
     }, [player]);
 
     const next = useCallback(async () => {
