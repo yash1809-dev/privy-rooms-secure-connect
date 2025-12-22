@@ -384,10 +384,10 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
             dragMomentum={false}
             dragElastic={0}
             dragConstraints={{
-                left: -character.position.x + 5,
-                right: window.innerWidth - character.position.x - 65,
-                top: -character.position.y + 5,
-                bottom: window.innerHeight - character.position.y - 125
+                left: -character.position.x,
+                right: window.innerWidth - character.position.x - 56,
+                top: -character.position.y,
+                bottom: window.innerHeight - character.position.y - 80
             }}
             onDragStart={onDragStart}
             onDrag={(e, info) => onDrag(info)}
@@ -457,17 +457,12 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
                     )}
 
-                    {/* Smooth, Cohesive Hair Design (Sakura-style logic) */}
+                    {/* Original Japanese Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Main smooth hair volume */}
-                            <path d="M14 18 Q28 -4 42 18 Q38 10 28 10 Q18 10 14 18" fill={hairColor} />
-                            {/* Smooth side groomed hair */}
-                            <path d="M14 18 Q12 24 16 30" fill={hairColor} />
-                            <path d="M42 18 Q44 24 40 30" fill={hairColor} />
-                            {/* Smooth side-parted bangs */}
-                            <path d="M16 18 Q22 32 30 14" fill={hairColor} />
-                            <path d="M24 12 Q30 26 38 16" fill={hairColor} />
+                            <path d="M14 20 Q28 6 42 20 Q36 10 28 10 Q20 10 14 20" fill={hairColor} />
+                            <path d="M16 22 Q12 30 14 36" fill={hairColor} />
+                            <path d="M40 22 Q44 30 42 36" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
