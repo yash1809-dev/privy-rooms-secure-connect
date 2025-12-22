@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS spotify_tokens (
 -- Enable RLS
 ALTER TABLE spotify_tokens ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist to prevent errors on re-run
+DROP POLICY IF EXISTS "Users can read own spotify tokens" ON spotify_tokens;
+DROP POLICY IF EXISTS "Users can insert own spotify tokens" ON spotify_tokens;
+DROP POLICY IF EXISTS "Users can update own spotify tokens" ON spotify_tokens;
+DROP POLICY IF EXISTS "Users can delete own spotify tokens" ON spotify_tokens;
+
 -- Policy: Users can only read their own tokens
 CREATE POLICY "Users can read own spotify tokens"
   ON spotify_tokens
@@ -38,7 +44,7 @@ CREATE POLICY "Users can delete own spotify tokens"
   USING (auth.uid() = user_id);
 
 -- Create index for faster lookups
-CREATE INDEX idx_spotify_tokens_user_id ON spotify_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_spotify_tokens_user_id ON spotify_tokens(user_id);
 
 -- Create function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_spotify_tokens_updated_at()
@@ -48,6 +54,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop trigger if exists to prevent errors
+DROP TRIGGER IF EXISTS spotify_tokens_updated_at ON spotify_tokens;
 
 -- Create trigger to call the function
 CREATE TRIGGER spotify_tokens_updated_at
