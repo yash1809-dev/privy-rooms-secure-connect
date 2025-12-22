@@ -408,7 +408,7 @@ export default function Dashboard() {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_3s_infinite] mix-blend-overlay pointer-events-none" />
               </h1>
             </div>
-            <p className="text-slate-200/40 font-medium max-w-lg mx-auto terminal-text lowercase text-xs tracking-tight relative">
+            <p className="hidden lg:block text-slate-200/40 font-medium max-w-lg mx-auto terminal-text lowercase text-xs tracking-tight relative">
               <span className="inline-block animate-pulse mr-2 text-teal-500">●</span>
               integrated college os hub // live rendering enabled // sector scan: 15ms
             </p>
@@ -416,7 +416,7 @@ export default function Dashboard() {
 
           <MapZone id="focus-zone" title="Focus Sanctuary" subtitle="Regeneration Sector" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="teal" icon={Clock}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
-              <div className="lg:col-span-7 space-y-8">
+              <div className="lg:col-span-9 space-y-8">
                 <Card className="glass-card p-6 sm:p-10 border-teal-500/20 bg-slate-900/40 glass-card-hover backdrop-blur-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                     <Zap className="w-24 h-24 text-teal-500" />
@@ -428,7 +428,7 @@ export default function Dashboard() {
                   />
                 </Card>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
                     { label: "Deep Work", desc: "No distractions", icon: Zap },
                     { label: "Flow State", desc: "Pure immersion", icon: Sparkles },
@@ -443,10 +443,10 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div id="focus-plant-container" className="lg:col-span-5 flex flex-col items-center justify-center p-8 bg-black/20 rounded-[3rem] border border-white/5 relative group min-h-[500px]">
+              <div id="focus-plant-container" className="lg:col-span-3 flex flex-col items-center justify-center p-8 bg-black/20 rounded-[3rem] border border-white/5 relative group min-h-[500px]">
                 <div className="absolute inset-0 bg-teal-500/10 blur-[100px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity" />
                 <div className="relative z-10 text-center space-y-6">
-                  <div className="space-y-2">
+                  <div className="hidden lg:block space-y-2">
                     <p className="text-[10px] font-mono text-teal-500 tracking-[0.3em] uppercase">Neural Growth Engine</p>
                     <h4 className="text-2xl font-black text-white italic tracking-tighter">SYNAPTIC BOTANY</h4>
                   </div>
@@ -465,7 +465,7 @@ export default function Dashboard() {
 
           <MapZone id="academic-zone" title="Academic Hub" subtitle="Intel Data-Lake" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="indigo" icon={GraduationCap}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-              <div className="lg:col-span-8">
+              <div className="lg:col-span-12">
                 <Card className="glass-card border-indigo-500/20 bg-slate-900/40 glass-card-hover min-h-[600px] overflow-hidden backdrop-blur-xl relative">
                   <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                     <GraduationCap className="w-64 h-64 text-indigo-500" />
@@ -473,8 +473,7 @@ export default function Dashboard() {
                   <Timetable />
                 </Card>
               </div>
-
-              <div className="lg:col-span-4 space-y-6 lg:pr-8">
+              <div className="hidden lg:block lg:col-span-4 space-y-6 lg:pr-8">
                 <div className="p-8 bg-indigo-500/5 border border-indigo-500/10 rounded-[3rem] space-y-6 relative group overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 opacity-20">
                     <Activity className="w-8 h-8 text-indigo-400" />
@@ -520,7 +519,7 @@ export default function Dashboard() {
 
           <MapZone id="broadcast-zone" title="Broadcast Tower" subtitle="Signal Relay" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="pink" icon={Mic}>
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 lg:gap-16 items-start">
-              <div className="xl:col-span-8 flex flex-col gap-8">
+              <div className="xl:col-span-12 flex flex-col gap-8">
                 <Card className="glass-card border-pink-500/20 bg-slate-900/40 glass-card-hover min-h-[400px] backdrop-blur-xl overflow-hidden">
                   <div className="p-3 sm:p-6 md:p-8 lg:p-12">
                     <div className="flex items-center gap-3 sm:gap-6 mb-8 lg:mb-12">
@@ -539,7 +538,7 @@ export default function Dashboard() {
                 </Card>
               </div>
 
-              <div className="xl:col-span-4 space-y-8">
+              <div className="hidden xl:block xl:col-span-4 space-y-8">
                 <div className="p-8 bg-black/40 rounded-[2.5rem] border border-white/5 space-y-6 relative overflow-hidden group lg:mr-8">
                   <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent" />
                   <div className="relative z-10 space-y-6">
@@ -589,7 +588,7 @@ export default function Dashboard() {
 
           <MapZone id="planner-zone" title="Mission Control" subtitle="Daily Operations" setUnlocked={setUnlockedZones} setActive={setActiveZone} color="amber" icon={CheckSquare}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-12">
                 <Card className="glass-card border-amber-500/20 bg-slate-900/90 glass-card-hover backdrop-blur-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
                     <CheckSquare className="w-48 h-48 text-amber-500" />
@@ -609,7 +608,7 @@ export default function Dashboard() {
                 </Card>
               </div>
 
-              <div className="lg:col-span-5 space-y-8 lg:pr-8">
+              <div className="hidden lg:block lg:col-span-5 space-y-8 lg:pr-8">
                 <div className="p-10 rounded-[3rem] bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border border-amber-500/10 space-y-10">
                   <div className="space-y-2">
                     <p className="text-[10px] font-mono text-amber-500 tracking-[0.3em] uppercase text-right">Mission Overview</p>
