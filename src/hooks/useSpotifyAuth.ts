@@ -44,9 +44,9 @@ export function useSpotifyAuth() {
         }
     };
 
-    const connect = () => {
+    const connect = async () => {
         try {
-            const authUrl = getSpotifyAuthUrl();
+            const authUrl = await getSpotifyAuthUrl();
             window.location.href = authUrl;
         } catch (error) {
             console.error("Error initiating Spotify auth:", error);
