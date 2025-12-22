@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getValidAccessToken } from "@/lib/spotify";
+import { getValidAccessToken, getCurrentUser } from "@/lib/spotify";
 import type { SpotifyPlayer, SpotifyWebPlaybackState } from "@/types/spotify";
 
 interface UseSpotifyPlayerOptions {
@@ -50,6 +50,19 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const initializePlayer = async () => {
         const token = await getValidAccessToken();
         if (!token || !window.Spotify) return;
+
+        // Check subscription status
+        try {
+            const user = await getCurrentUser();
+            if (user.product !== 'premium') {
+                console.log('Free Spotify account detected');
+                setError('Free Spotify account detected. Premium required for in-browser playback.');
+                // Don't initialize player for free users to avoid errors
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to check subscription", e);
+        }
 
         const spotifyPlayer = new window.Spotify.Player({
             name: 'CollegeOS Focus Sanctuary',
