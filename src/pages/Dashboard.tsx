@@ -109,6 +109,8 @@ export default function Dashboard() {
   const [userXP, setUserXP] = useState(() => getXP());
   const [buddyStatus, setBuddyStatus] = useState<'idle' | 'focusing' | 'excited' | 'greeting'>('idle');
   const [vocalPrecision, setVocalPrecision] = useState<number>(0);
+  const [ninjaPos, setNinjaPos] = useState({ x: 0, y: 0 });
+  const [kunoichiPos, setKunoichiPos] = useState({ x: 0, y: 0 });
 
   const streak = calculateStreak();
   const dailyProgress = todos.length > 0
@@ -256,8 +258,8 @@ export default function Dashboard() {
               </PopoverTrigger>
               <PopoverContent className="w-auto p-4 bg-slate-950/95 backdrop-blur-2xl border-cyan-500/20 text-slate-200 shadow-2xl mr-4">
                 <CharacterControlMenu
-                  ninjaPos={{ x: 0, y: 0 }}
-                  kunoichiPos={{ x: 0, y: 0 }}
+                  ninjaPos={ninjaPos}
+                  kunoichiPos={kunoichiPos}
                   currentPage="/dashboard"
                 />
               </PopoverContent>
@@ -655,7 +657,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <NeuralCouple status={buddyStatus} />
+      <NeuralCouple
+        status={buddyStatus}
+        onPositionChange={(n, k) => {
+          setNinjaPos(n);
+          setKunoichiPos(k);
+        }}
+      />
     </div>
   );
 }
