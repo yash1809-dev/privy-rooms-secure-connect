@@ -457,21 +457,19 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
                     )}
 
-                    {/* Modern Hair Design */}
+                    {/* Normal, Handsome Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Base Volume */}
-                            <path d="M14 16 Q28 -4 42 16 L40 24 L16 24 Z" fill={hairColor} />
-                            {/* Layered Spikes (Anime Style) */}
-                            <path d="M10 16 L4 8 L18 14" fill={hairColor} />
-                            <path d="M46 16 L52 8 L38 14" fill={hairColor} />
-                            <path d="M14 6 L20 -4 L26 8" fill={hairColor} />
-                            <path d="M30 6 L36 -4 L42 8" fill={hairColor} />
-                            <path d="M22 2 L28 -8 L34 2" fill={hairColor} />
-                            {/* Front Bangs (V-shape to break forehead line) */}
-                            <path d="M16 18 L22 34 L28 20" fill={hairColor} />
-                            <path d="M22 18 L28 36 L34 18" fill={hairColor} />
-                            <path d="M28 20 L34 34 L40 20" fill={hairColor} />
+                            {/* Clean Hair Base */}
+                            <path d="M14 18 Q28 -2 42 18 L40 24 L16 24 Z" fill={hairColor} />
+                            {/* Softer side volume */}
+                            <path d="M14 18 Q10 24 16 28" fill={hairColor} />
+                            <path d="M42 18 Q46 24 40 28" fill={hairColor} />
+
+                            {/* Side-swept handsome bangs */}
+                            <path d="M18 18 Q24 28 32 20" fill={hairColor} />
+                            <path d="M26 18 Q32 26 40 18" fill={hairColor} />
+                            <path d="M16 20 Q20 32 26 18" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
