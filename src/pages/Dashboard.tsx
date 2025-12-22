@@ -9,11 +9,12 @@ import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import { TodoList } from "@/components/dashboard/TodoList";
 import { NeuralCouple } from "@/components/dashboard/NeuralCouple";
+import { CharacterControlMenu } from "@/components/dashboard/CharacterControlMenu";
 import {
   Clock, GraduationCap, Mic, MapPin, Lock, Unlock,
   Map as MapIcon, ChevronRight, Zap, MoreVertical, Image as ImageIcon, RotateCcw,
   User, ShieldCheck, Sparkles, Upload, MessageSquare, Pen, CheckSquare,
-  Activity, Terminal as TerminalIcon, LayoutDashboard, Settings
+  Activity, Terminal as TerminalIcon, LayoutDashboard, Settings, Radar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -246,6 +247,21 @@ export default function Dashboard() {
             >
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/40 backdrop-blur-md border-cyan-500/20 hover:bg-white/10 hover:border-cyan-500/40 transition-all hover:scale-110 group">
+                  <Radar className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 group-hover:animate-spin" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4 bg-slate-950/95 backdrop-blur-2xl border-cyan-500/20 text-slate-200 shadow-2xl mr-4">
+                <CharacterControlMenu
+                  ninjaPos={{ x: 0, y: 0 }}
+                  kunoichiPos={{ x: 0, y: 0 }}
+                  currentPage="/dashboard"
+                />
+              </PopoverContent>
+            </Popover>
 
             <Popover>
               <PopoverTrigger asChild>
