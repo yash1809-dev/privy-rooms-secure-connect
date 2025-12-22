@@ -109,11 +109,11 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     const [gameState, setGameState] = useState<'none' | 'hideSeek' | 'rps' | 'follow' | 'playing'>('none');
 
     const clampPosition = useCallback((x: number, y: number) => {
-        const maxX = window.innerWidth - 70;
-        const maxY = window.innerHeight - 100;
+        const maxX = window.innerWidth - 60;
+        const maxY = window.innerHeight - 85;
         return {
-            x: Math.max(MARGIN / 2, Math.min(maxX, x)),
-            y: Math.max(MARGIN / 2, Math.min(maxY, y))
+            x: Math.max(5, Math.min(maxX, x)),
+            y: Math.max(5, Math.min(maxY, y))
         };
     }, []);
 
@@ -268,7 +268,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     useEffect(() => {
         const roam = () => {
             if (shadow.isDragging || sakura.isDragging || status === 'focusing' || gameState !== 'none') return;
-            if (shadow.currentThought || sakura.currentThought) return;
+            // Removed currentThought block to allow freer movement even while talking
 
             const move = (char: 'shadow' | 'sakura') => {
                 const targetX = Math.random() * window.innerWidth;
@@ -302,19 +302,29 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         return () => clearInterval(interval);
     }, [gameState, relationshipLevel, shadow.currentThought, sakura.currentThought]);
 
-    // Interaction Handlers
+    // Interaction Handlers (Optimistic UI)
     const handlePet = async (charId: 'shadow' | 'sakura') => {
-        const response = await generateAIDialogue(charId, "User petted you. React warmly!", relationshipLevel, conversationMemory);
-        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "ありがとう! 💕", mood: 'happy', showInteractionMenu: false }));
+        // Immediate reaction
+        const setter = charId === 'shadow' ? setShadow : setSakura;
+        setter(prev => ({ ...prev, currentThought: "✨ ...", mood: 'happy', showInteractionMenu: false }));
         increaseRelationship(3);
-        setTimeout(() => (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
+
+        const response = await generateAIDialogue(charId, "User petted you. React warmly!", relationshipLevel, conversationMemory);
+        setter(prev => ({ ...prev, currentThought: response || "ありがとう! 💕" }));
+
+        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
     };
 
     const handleTalkAction = async (charId: 'shadow' | 'sakura') => {
-        const response = await generateAIDialogue(charId, "User wants to talk to you specifically.", relationshipLevel, conversationMemory);
-        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "こんにちは!", mood: 'talking', showInteractionMenu: false }));
+        // Immediate reaction
+        const setter = charId === 'shadow' ? setShadow : setSakura;
+        setter(prev => ({ ...prev, currentThought: "💬 ...", mood: 'talking', showInteractionMenu: false }));
         increaseRelationship(1);
-        setTimeout(() => (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
+
+        const response = await generateAIDialogue(charId, "User wants to talk to you specifically.", relationshipLevel, conversationMemory);
+        setter(prev => ({ ...prev, currentThought: response || "こんにちは!" }));
+
+        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
     };
 
     return (
@@ -326,8 +336,11 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onTalk={() => handleTalkAction('shadow')}
                 onPositionChange={(pos) => setShadow(prev => ({ ...prev, position: pos }))}
                 onDragStart={() => setShadow(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
-                onDrag={(info) => setShadow(prev => ({ ...prev, position: clampPosition(info.point.x - 30, info.point.y - 40) }))}
-                onDragEnd={() => setShadow(prev => ({ ...prev, isDragging: false, mood: 'idle' }))}
+                onDrag={() => { }} // No-op during drag for performance
+                onDragEnd={(info: any) => {
+                    const finalPos = clampPosition(shadow.position.x + info.offset.x, shadow.position.y + info.offset.y);
+                    setShadow(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                }}
                 onToggleMenu={() => setShadow(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
             />
             <JapaneseCharacter
@@ -337,8 +350,11 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onTalk={() => handleTalkAction('sakura')}
                 onPositionChange={(pos) => setSakura(prev => ({ ...prev, position: pos }))}
                 onDragStart={() => setSakura(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
-                onDrag={(info) => setSakura(prev => ({ ...prev, position: clampPosition(info.point.x - 30, info.point.y - 40) }))}
-                onDragEnd={() => setSakura(prev => ({ ...prev, isDragging: false, mood: 'idle' }))}
+                onDrag={() => { }} // No-op during drag for performance
+                onDragEnd={(info: any) => {
+                    const finalPos = clampPosition(sakura.position.x + info.offset.x, sakura.position.y + info.offset.y);
+                    setSakura(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                }}
                 onToggleMenu={() => setSakura(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
             />
         </>
@@ -384,10 +400,10 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
             dragMomentum={false}
             dragElastic={0}
             dragConstraints={{
-                left: -character.position.x,
-                right: window.innerWidth - character.position.x - 56,
-                top: -character.position.y,
-                bottom: window.innerHeight - character.position.y - 80
+                left: -character.position.x + 5,
+                right: window.innerWidth - character.position.x - 60,
+                top: -character.position.y + 5,
+                bottom: window.innerHeight - character.position.y - 85
             }}
             onDragStart={onDragStart}
             onDrag={(e, info) => onDrag(info)}
