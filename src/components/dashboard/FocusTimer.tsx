@@ -279,7 +279,36 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                                 onDisconnect={spotifyAuth.disconnect}
                             />
 
-                            {spotifyPlayer.isReady ? (
+                            {spotifyPlayer.error && spotifyPlayer.error.includes("Premium") ? (
+                                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center space-y-3">
+                                    <p className="text-xs text-amber-200">
+                                        Free Spotify accounts can't play directly in the browser due to Spotify limitations.
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => window.open('https://open.spotify.com', '_blank')}
+                                        className="w-full bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+                                    >
+                                        Open Spotify App ↗
+                                    </Button>
+
+                                    <SpotifyPlaylistSelector
+                                        playlists={playlists || []}
+                                        isLoading={isLoadingPlaylists}
+                                        selectedPlaylistId={selectedPlaylistId}
+                                        onSelectPlaylist={(id) => {
+                                            const playlist = playlists?.find(p => p.id === id);
+                                            if (playlist?.external_urls?.spotify) {
+                                                window.open(playlist.external_urls.spotify, '_blank');
+                                            }
+                                        }}
+                                    />
+                                    <p className="text-[10px] text-slate-500">
+                                        Select a playlist to open it directly
+                                    </p>
+                                </div>
+                            ) : spotifyPlayer.isReady ? (
                                 <>
                                     {spotifyPlayer.currentTrack && (
                                         <NowPlaying

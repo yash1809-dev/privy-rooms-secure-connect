@@ -28,6 +28,9 @@ export interface SpotifyPlaylist {
     owner: {
         display_name: string;
     };
+    external_urls: {
+        spotify: string;
+    };
 }
 
 // Spotify track

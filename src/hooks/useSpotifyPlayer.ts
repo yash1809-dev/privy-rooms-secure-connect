@@ -14,6 +14,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const [currentTrack, setCurrentTrack] = useState<any | null>(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [error, setError] = useState<string | null>(null);
 
     const playerRef = useRef<SpotifyPlayer | null>(null);
     const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,12 +65,29 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             console.log('Spotify Player Ready with Device ID', device_id);
             setDeviceId(device_id);
             setIsReady(true);
+            setError(null);
         });
 
         // Not Ready
         spotifyPlayer.addListener('not_ready', ({ device_id }) => {
             console.log('Device ID has gone offline', device_id);
             setIsReady(false);
+        });
+
+        // Errors
+        spotifyPlayer.addListener('initialization_error', ({ message }) => {
+            console.error('Failed to initialize:', message);
+            setError(message);
+        });
+
+        spotifyPlayer.addListener('authentication_error', ({ message }) => {
+            console.error('Failed to authenticate:', message);
+            setError(message);
+        });
+
+        spotifyPlayer.addListener('account_error', ({ message }) => {
+            console.error('Failed to validate Spotify account:', message);
+            setError('Free Spotify account detected. Premium required for in-browser playback.');
         });
 
         // Player state changed
@@ -167,5 +185,6 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         previous,
         seek,
         setVolume,
+        error,
     };
 }
