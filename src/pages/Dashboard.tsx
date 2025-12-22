@@ -9,6 +9,7 @@ import VoiceNotesToText from "@/components/VoiceNotesToText";
 import Timetable from "@/components/Timetable";
 import { TodoList } from "@/components/dashboard/TodoList";
 import { NeuralCouple } from "@/components/dashboard/NeuralCouple";
+import { Footer } from "@/components/Footer";
 import { CharacterControlMenu } from "@/components/dashboard/CharacterControlMenu";
 import {
   Clock, GraduationCap, Mic, MapPin, Lock, Unlock,
@@ -653,6 +654,8 @@ export default function Dashboard() {
               </div>
             </div>
           </MapZone>
+
+          <Footer className="border-t border-white/5 bg-transparent mt-20 pb-12 opacity-60 hover:opacity-100 transition-opacity" />
         </div>
       </div>
 

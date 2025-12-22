@@ -24,6 +24,7 @@ import { ChatConversation } from "@/components/ChatConversation";
 import { NotificationBell } from "@/components/NotificationBell";
 import { UserSearchDialog } from "@/components/UserSearchDialog";
 import { useVideoCalls } from "@/hooks/useVideoCalls";
+import { Footer } from "@/components/Footer";
 
 interface Group {
     id: string;
@@ -665,111 +666,110 @@ export default function Chats() {
                             </div>
                         )}
                     </div>
-                </main>
-            )}
-        </aside>
-    );
+                    <Footer className="mt-auto border-t border-white/5 bg-slate-950/80 backdrop-blur-md py-4 px-2 scale-90 origin-bottom" />
+                </aside>
+            );
 
-    // Desktop: Two-pane layout
-    return (
-        <div className="min-h-screen bg-slate-950 flex">
-            {/* Chat List Sidebar */}
-            {chatListSidebar}
+            // Desktop: Two-pane layout
+            return (
+            <div className="min-h-screen bg-slate-950 flex">
+                {/* Chat List Sidebar */}
+                {chatListSidebar}
 
-            {/* Right Panel: Active Conversation or Empty State */}
-            <div className="hidden lg:flex h-screen flex-1 flex-col bg-slate-950 border-l border-white/10">
-                {groupId ? (
-                    <ChatConversation
-                        groupId={groupId}
-                        isMobile={false}
-                        initialGroupData={(() => {
-                            const selectedGroup = groups.find(g => g.id === groupId);
-                            return selectedGroup ? {
-                                name: selectedGroup.name,
-                                avatar_url: selectedGroup.avatar_url
-                            } : undefined;
-                        })()}
-                    />
-                ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center">
-                        <MessageSquare className="h-20 w-20 mx-auto mb-4 text-slate-800" />
-                        <h3 className="text-xl font-semibold mb-2 text-slate-400">Select a chat to start messaging</h3>
-                        <p className="text-slate-600">Choose a conversation from the list on the left</p>
+                {/* Right Panel: Active Conversation or Empty State */}
+                <div className="hidden lg:flex h-screen flex-1 flex-col bg-slate-950 border-l border-white/10">
+                    {groupId ? (
+                        <ChatConversation
+                            groupId={groupId}
+                            isMobile={false}
+                            initialGroupData={(() => {
+                                const selectedGroup = groups.find(g => g.id === groupId);
+                                return selectedGroup ? {
+                                    name: selectedGroup.name,
+                                    avatar_url: selectedGroup.avatar_url
+                                } : undefined;
+                            })()}
+                        />
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center">
+                            <MessageSquare className="h-20 w-20 mx-auto mb-4 text-slate-800" />
+                            <h3 className="text-xl font-semibold mb-2 text-slate-400">Select a chat to start messaging</h3>
+                            <p className="text-slate-600">Choose a conversation from the list on the left</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Contact Selector Dialog */}
+                <ContactSelectorDialog
+                    open={contactSelectorOpen}
+                    onOpenChange={setContactSelectorOpen}
+                    onStartCall={handleStartCall}
+                />
+
+                {/* Video Call Room */}
+                <VideoCallRoom
+                    open={!!activeCallId}
+                    onOpenChange={(open) => !open && setActiveCallId(null)}
+                    callId={activeCallId}
+                    participants={activeCallParticipants}
+                />
+
+                {/* Create Group Dialog */}
+                <CreateGroupDialog
+                    open={createGroupOpen}
+                    onOpenChange={setCreateGroupOpen}
+                    onGroupCreated={loadGroups}
+                />
+
+                {/* User Search Dialog */}
+                <UserSearchDialog
+                    open={userSearchOpen}
+                    onOpenChange={setUserSearchOpen}
+                />
+
+                {/* Simple Custom Delete Confirmation Modal */}
+                {showDeleteConfirm && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center"
+                        onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setGroupToDelete(null);
+                        }}
+                    >
+                        {/* Backdrop */}
+                        <div className="absolute inset-0 bg-black/80" />
+
+                        {/* Modal */}
+                        <div
+                            className="relative bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2 className="text-lg font-semibold mb-2">Delete Chat</h2>
+                            <p className="text-sm text-muted-foreground mb-6">
+                                Are you sure you want to delete this chat? This action cannot be undone and you will lose access to all messages in this chat.
+                            </p>
+
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false);
+                                        setGroupToDelete(null);
+                                    }}
+                                    className="focus:ring-0 focus:outline-none"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={confirmDelete}
+                                    className="bg-red-600 hover:bg-red-700 text-white focus:ring-0 focus:outline-none"
+                                >
+                                    Delete
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
-
-            {/* Contact Selector Dialog */}
-            <ContactSelectorDialog
-                open={contactSelectorOpen}
-                onOpenChange={setContactSelectorOpen}
-                onStartCall={handleStartCall}
-            />
-
-            {/* Video Call Room */}
-            <VideoCallRoom
-                open={!!activeCallId}
-                onOpenChange={(open) => !open && setActiveCallId(null)}
-                callId={activeCallId}
-                participants={activeCallParticipants}
-            />
-
-            {/* Create Group Dialog */}
-            <CreateGroupDialog
-                open={createGroupOpen}
-                onOpenChange={setCreateGroupOpen}
-                onGroupCreated={loadGroups}
-            />
-
-            {/* User Search Dialog */}
-            <UserSearchDialog
-                open={userSearchOpen}
-                onOpenChange={setUserSearchOpen}
-            />
-
-            {/* Simple Custom Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center"
-                    onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setGroupToDelete(null);
-                    }}
-                >
-                    {/* Backdrop */}
-                    <div className="absolute inset-0 bg-black/80" />
-
-                    {/* Modal */}
-                    <div
-                        className="relative bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h2 className="text-lg font-semibold mb-2">Delete Chat</h2>
-                        <p className="text-sm text-muted-foreground mb-6">
-                            Are you sure you want to delete this chat? This action cannot be undone and you will lose access to all messages in this chat.
-                        </p>
-
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setShowDeleteConfirm(false);
-                                    setGroupToDelete(null);
-                                }}
-                                className="focus:ring-0 focus:outline-none"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={confirmDelete}
-                                className="bg-red-600 hover:bg-red-700 text-white focus:ring-0 focus:outline-none"
-                            >
-                                Delete
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+            );
 }
