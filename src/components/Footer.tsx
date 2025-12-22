@@ -13,7 +13,7 @@ export function Footer({ className }: FooterProps) {
 
   return (
     <>
-      <footer className={cn("py-8 border-t border-white/5 relative group transition-all duration-500", className)}>
+      <footer className={cn("pt-8 pb-0 border-t border-white/5 relative group transition-all duration-500", className)}>
         <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         <div className="container mx-auto px-6 relative z-10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">

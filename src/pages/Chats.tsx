@@ -669,7 +669,7 @@ export default function Chats() {
                 </main>
             )}
 
-            <Footer className="mt-auto border-t border-white/5 bg-slate-950/80 backdrop-blur-md py-4 px-2 scale-90 origin-bottom" />
+            <Footer className="mt-auto border-t border-white/5 bg-slate-950/80 backdrop-blur-md pb-0 px-2 scale-90 origin-bottom" />
         </aside>
     );
 
