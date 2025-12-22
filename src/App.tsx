@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { StoryProgressProvider } from "@/contexts/StoryProgressProvider";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/AppLayout";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -43,36 +44,38 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="collegeos-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<PageSkeleton />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/features" element={<Features />} />
+      <StoryProgressProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<PageSkeleton />}>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/features" element={<Features />} />
 
-              {/* Authenticated routes with persistent layout */}
-              <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/chats" element={<Chats />} />
-                <Route path="/chats/:groupId" element={<Chats />} />
-                <Route path="/profile" element={<Profile />} />
-              </Route>
+                {/* Authenticated routes with persistent layout */}
+                <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/chats" element={<Chats />} />
+                  <Route path="/chats/:groupId" element={<Chats />} />
+                  <Route path="/profile" element={<Profile />} />
+                </Route>
 
-              {/* Authenticated routes without persistent layout (full-screen) */}
-              <Route path="/room/:id" element={<AuthGuard><AppLayout /><Room /></AuthGuard>} />
-              {/* Redirect old group route to new chats route */}
-              <Route path="/group/:id" element={<AuthGuard><AppLayout /><Group /></AuthGuard>} />
+                {/* Authenticated routes without persistent layout (full-screen) */}
+                <Route path="/room/:id" element={<AuthGuard><AppLayout /><Room /></AuthGuard>} />
+                {/* Redirect old group route to new chats route */}
+                <Route path="/group/:id" element={<AuthGuard><AppLayout /><Group /></AuthGuard>} />
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </StoryProgressProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
