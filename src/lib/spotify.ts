@@ -23,10 +23,29 @@ export const generateRandomString = (length: number): string => {
     return values.reduce((acc, x) => acc + possible[x % possible.length], '');
 };
 
+// Generate PKCE code challenge
+const generateCodeChallenge = async (codeVerifier: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+};
+
 // Get Spotify authorization URL
-export const getSpotifyAuthUrl = (): string => {
+export const getSpotifyAuthUrl = async (): Promise<string> => {
     const { clientId, redirectUri } = getSpotifyConfig();
     const state = generateRandomString(16);
+    const codeVerifier = generateRandomString(128); // PKCE requirement: 43-128 chars
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    // Store state & verifier for verification
+    sessionStorage.setItem('spotify_auth_state', state);
+    sessionStorage.setItem('spotify_code_verifier', codeVerifier);
+
     const scope = [
         'user-read-private',
         'user-read-email',
@@ -44,10 +63,9 @@ export const getSpotifyAuthUrl = (): string => {
         scope,
         redirect_uri: redirectUri,
         state,
+        code_challenge_method: 'S256',
+        code_challenge: codeChallenge,
     });
-
-    // Store state for verification
-    sessionStorage.setItem('spotify_auth_state', state);
 
     return `${SPOTIFY_ACCOUNTS_BASE}/authorize?${params.toString()}`;
 };
@@ -55,6 +73,11 @@ export const getSpotifyAuthUrl = (): string => {
 // Exchange authorization code for tokens
 export const exchangeCodeForTokens = async (code: string): Promise<SpotifyTokens> => {
     const { clientId, redirectUri } = getSpotifyConfig();
+    const codeVerifier = sessionStorage.getItem('spotify_code_verifier');
+
+    if (!codeVerifier) {
+        throw new Error("PKCE code verifier missing");
+    }
 
     const response = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/api/token`, {
         method: 'POST',
@@ -66,8 +89,12 @@ export const exchangeCodeForTokens = async (code: string): Promise<SpotifyTokens
             code,
             redirect_uri: redirectUri,
             client_id: clientId,
+            code_verifier: codeVerifier, // PKCE Check
         }),
     });
+
+    // Clear verifier after use
+    sessionStorage.removeItem('spotify_code_verifier');
 
     if (!response.ok) {
         const error = await response.json();
