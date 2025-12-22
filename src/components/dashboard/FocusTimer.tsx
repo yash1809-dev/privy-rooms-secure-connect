@@ -65,7 +65,27 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                 }
             } catch (error) {
                 console.error("Failed to start playback:", error);
-                toast.error("Failed to start playback. Make sure you have Spotify Premium.");
+
+                // Fallback for errors (like 403 Premium required)
+                toast.error("Playback failed. Opening in Spotify App...", {
+                    action: {
+                        label: "Open App",
+                        onClick: () => {
+                            const playlist = playlists?.find(p => p.id === playlistId);
+                            if (playlist?.external_urls?.spotify) {
+                                window.open(playlist.external_urls.spotify, '_blank');
+                            }
+                        }
+                    }
+                });
+
+                // Auto-open also
+                const playlist = playlists?.find(p => p.id === playlistId);
+                if (playlist?.external_urls?.spotify) {
+                    setTimeout(() => {
+                        window.open(playlist.external_urls.spotify, '_blank');
+                    }, 1000);
+                }
             }
         }
     };
