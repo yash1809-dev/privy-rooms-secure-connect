@@ -448,11 +448,15 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                     {/* Modern Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Sharp masculine hair for Shadow */}
-                            <path d="M14 16 Q28 0 42 16 Q38 8 28 8 Q18 8 14 16" fill={hairColor} />
-                            <path d="M16 18 L16 26 L22 20" fill={hairColor} /> {/* Sharp side cut */}
-                            <path d="M40 18 L40 26 L34 20" fill={hairColor} /> {/* Sharp side cut */}
-                            <path d="M22 14 L28 22 L34 14" fill={hairColor} /> {/* Front spikes */}
+                            {/* Sharp masculine hair for Shadow with more front volume */}
+                            <path d="M12 18 Q28 -4 44 18 Q40 10 28 8 Q16 10 12 18" fill={hairColor} />
+                            <path d="M16 18 L16 28 L24 22" fill={hairColor} /> {/* Structured side cut */}
+                            <path d="M40 18 L40 28 L32 22" fill={hairColor} /> {/* Structured side cut */}
+
+                            {/* More front bangs to fix "baldness" */}
+                            <path d="M18 16 L24 28 L28 20" fill={hairColor} />
+                            <path d="M24 16 L28 30 L32 16" fill={hairColor} />
+                            <path d="M28 16 L34 27 L38 16" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
