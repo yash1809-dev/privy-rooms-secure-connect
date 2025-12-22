@@ -177,6 +177,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     useEffect(() => {
         const triggerActivity = async () => {
             if (shadow.isDragging || sakura.isDragging || isGenerating || gameState !== 'none') return;
+            if (shadow.showInteractionMenu || sakura.showInteractionMenu || shadow.currentThought || sakura.currentThought) return;
 
             const roll = Math.random();
 
@@ -278,6 +279,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     useEffect(() => {
         const roam = () => {
             if (shadow.isDragging || sakura.isDragging || status === 'focusing' || gameState !== 'none') return;
+            if (shadow.showInteractionMenu || sakura.showInteractionMenu || shadow.currentThought || sakura.currentThought) return;
             // Removed currentThought block to allow freer movement even while talking
 
             const move = (char: 'shadow' | 'sakura') => {
@@ -348,9 +350,14 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onDragStart={() => setShadow(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
                 onDrag={() => { }} // No-op during drag for performance
                 onDragEnd={(e: any, info: any) => {
-                    // Use info.point for absolute screen coordinates (much more reliable than offset)
-                    const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
-                    setShadow(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                    // Only update state if it was a real drag (threshold 5px)
+                    const distance = Math.sqrt(info.offset.x ** 2 + info.offset.y ** 2);
+                    if (distance > 5) {
+                        const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
+                        setShadow(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                    } else {
+                        setShadow(prev => ({ ...prev, isDragging: false }));
+                    }
                 }}
                 onToggleMenu={() => setShadow(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
             />
@@ -363,9 +370,14 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onDragStart={() => setSakura(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
                 onDrag={() => { }} // No-op during drag for performance
                 onDragEnd={(e: any, info: any) => {
-                    // Use info.point for absolute screen coordinates
-                    const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
-                    setSakura(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                    // Only update state if it was a real drag (threshold 5px)
+                    const distance = Math.sqrt(info.offset.x ** 2 + info.offset.y ** 2);
+                    if (distance > 5) {
+                        const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
+                        setSakura(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
+                    } else {
+                        setSakura(prev => ({ ...prev, isDragging: false }));
+                    }
                 }}
                 onToggleMenu={() => setSakura(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
             />
