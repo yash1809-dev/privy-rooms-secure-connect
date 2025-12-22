@@ -121,6 +121,16 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         onPositionChange?.(shadow.position, sakura.position);
     }, [shadow.position, sakura.position, onPositionChange]);
 
+    // Safety: Ensure characters are always on screen after resize
+    useEffect(() => {
+        const handleResize = () => {
+            setShadow(prev => ({ ...prev, position: clampPosition(prev.position.x, prev.position.y) }));
+            setSakura(prev => ({ ...prev, position: clampPosition(prev.position.x, prev.position.y) }));
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [clampPosition]);
+
     // Complex AI Dialogues
     useEffect(() => {
         if (status === 'focusing' || shadow.isDragging || sakura.isDragging || isGenerating || gameState !== 'none') return;
@@ -337,8 +347,9 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onPositionChange={(pos) => setShadow(prev => ({ ...prev, position: pos }))}
                 onDragStart={() => setShadow(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
                 onDrag={() => { }} // No-op during drag for performance
-                onDragEnd={(info: any) => {
-                    const finalPos = clampPosition(shadow.position.x + info.offset.x, shadow.position.y + info.offset.y);
+                onDragEnd={(e: any, info: any) => {
+                    // Use info.point for absolute screen coordinates (much more reliable than offset)
+                    const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
                     setShadow(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
                 }}
                 onToggleMenu={() => setShadow(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
@@ -351,8 +362,9 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onPositionChange={(pos) => setSakura(prev => ({ ...prev, position: pos }))}
                 onDragStart={() => setSakura(prev => ({ ...prev, isDragging: true, showInteractionMenu: false }))}
                 onDrag={() => { }} // No-op during drag for performance
-                onDragEnd={(info: any) => {
-                    const finalPos = clampPosition(sakura.position.x + info.offset.x, sakura.position.y + info.offset.y);
+                onDragEnd={(e: any, info: any) => {
+                    // Use info.point for absolute screen coordinates
+                    const finalPos = clampPosition(info.point.x - 28, info.point.y - 40);
                     setSakura(prev => ({ ...prev, position: finalPos, isDragging: false, mood: 'idle' }));
                 }}
                 onToggleMenu={() => setSakura(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }))}
@@ -429,8 +441,9 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             className={cn(
-                                "absolute z-50 pointer-events-none w-max max-w-[160px] sm:max-w-[240px]",
-                                "left-1/2 -translate-x-1/2 bottom-full mb-3"
+                                "absolute z-[90] pointer-events-none w-max max-w-[160px] sm:max-w-[240px]",
+                                "left-1/2 -translate-x-1/2 bottom-full",
+                                character.showInteractionMenu ? "mb-20" : "mb-3" // Push up if menu is open
                             )}
                         >
                             <div className={cn(
