@@ -73,7 +73,8 @@ async function generateAIDialogue(
 }
 
 export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCoupleProps) {
-    const { increaseRelationship, incrementQuestProgress, relationshipLevel } = useStoryProgress();
+    const { increaseRelationship, incrementQuestProgress, storyState } = useStoryProgress();
+    const { relationshipLevel } = storyState;
 
     const getInitialPos = (offsetX: number) => ({
         x: Math.min(window.innerWidth - 80, Math.max(MARGIN, window.innerWidth - offsetX)),
@@ -284,14 +285,14 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     // Interaction Handlers
     const handlePet = async (charId: 'shadow' | 'sakura') => {
         const response = await generateAIDialogue(charId, "User petted you. React warmly!", relationshipLevel, conversationMemory);
-        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "Thanks! 💕", mood: 'happy', showInteractionMenu: false }));
+        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "ありがとう! 💕", mood: 'happy', showInteractionMenu: false }));
         increaseRelationship(3);
         setTimeout(() => (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
     };
 
     const handleTalkAction = async (charId: 'shadow' | 'sakura') => {
         const response = await generateAIDialogue(charId, "User wants to talk to you specifically.", relationshipLevel, conversationMemory);
-        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "Hi there!", mood: 'talking', showInteractionMenu: false }));
+        (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: response || "こんにちは!", mood: 'talking', showInteractionMenu: false }));
         increaseRelationship(1);
         setTimeout(() => (charId === 'shadow' ? setShadow : setSakura)(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
     };
@@ -331,6 +332,22 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
     const primary = isShadow ? '#1e293b' : '#fda4af';
     const accent = isShadow ? '#67e8f9' : '#f9a8d4';
 
+    const getMouthPath = () => {
+        switch (character.mood) {
+            case 'happy':
+            case 'love':
+                return "M24 30 Q28 34 32 30";
+            case 'talking':
+            case 'learning':
+                return "M26 31 Q28 33 30 31";
+            case 'seeking':
+            case 'hiding':
+                return "M26 31 L30 31";
+            default:
+                return "M26 32 Q28 33 30 32";
+        }
+    };
+
     if (character.isHidden) {
         return (
             <div className="fixed z-[9998]" style={{ left: character.position.x, top: character.position.y }}>
@@ -356,7 +373,7 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                 className="relative w-14 h-20 group"
                 onClick={onToggleMenu}
             >
-                {/* Speech Bubble (Mobile Optimized) */}
+                {/* Speech Bubble (Optimized Alignment) */}
                 <AnimatePresence>
                     {character.currentThought && (
                         <motion.div
@@ -364,14 +381,16 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             className={cn(
-                                "absolute z-50 pointer-events-none w-max max-w-[150px] sm:max-w-[220px]",
+                                "absolute z-50 pointer-events-none w-max max-w-[160px] sm:max-w-[240px]",
                                 "left-1/2 -translate-x-1/2 bottom-full mb-3"
                             )}
                         >
                             <div className={cn(
-                                "px-3 py-2 rounded-2xl shadow-xl border text-[10px] sm:text-[12px] font-medium leading-tight text-center",
-                                isShadow ? "bg-slate-900 border-cyan-500/30 text-cyan-50" : "bg-white border-pink-200 text-pink-900"
-                            )}>
+                                "px-4 py-2.5 rounded-2xl shadow-2xl border text-[11px] sm:text-[13px] font-semibold leading-tight text-center whitespace-pre-wrap flex items-center justify-center",
+                                isShadow ? "bg-slate-900/95 border-cyan-500/40 text-cyan-50" : "bg-white/95 border-pink-200 text-pink-900"
+                            )}
+                                style={{ minWidth: "80px" }}
+                            >
                                 {character.currentThought}
                             </div>
                         </motion.div>
@@ -382,63 +401,101 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                 <AnimatePresence>
                     {character.showInteractionMenu && (
                         <motion.div
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 5 }}
-                            className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-2 z-[60]"
+                            initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-3 z-[60]"
                         >
-                            <button onClick={(e) => { e.stopPropagation(); onPet(); }} className="p-2 bg-white shadow-lg rounded-full border border-pink-100"><Heart className="w-4 h-4 text-pink-500" fill="currentColor" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); onTalk(); }} className="p-2 bg-white shadow-lg rounded-full border border-cyan-100"><MessageCircle className="w-4 h-4 text-cyan-500" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); onPet(); }} className="p-2 bg-white/90 shadow-xl rounded-full border border-pink-100 hover:scale-110 transition-transform"><Heart className="w-4 h-4 text-pink-500" fill="currentColor" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); onTalk(); }} className="p-2 bg-white/90 shadow-xl rounded-full border border-cyan-100 hover:scale-110 transition-transform"><MessageCircle className="w-4 h-4 text-cyan-500" /></button>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* SVG Character */}
-                <svg viewBox="0 0 60 80" className="w-full h-full drop-shadow-lg">
-                    <ellipse cx="30" cy="20" rx="15" ry="13" fill={hairColor} />
-                    <ellipse cx="30" cy="24" rx="12" ry="11" fill={skinColor} />
+                {/* SVG Character (Youthful Design) */}
+                <svg viewBox="0 0 56 80" className="w-full h-full drop-shadow-xl">
+                    {/* Hair Back */}
+                    <ellipse cx="28" cy="20" rx="16" ry="14" fill={hairColor} />
+
+                    {/* Face */}
+                    <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
+
+                    {/* Modern Hair Design */}
                     {isShadow ? (
-                        <path d="M18 20 Q30 10 42 20 Q40 16 30 14 Q20 16 18 20" fill={hairColor} />
+                        <g>
+                            {/* Fuller youthful hair for Shadow */}
+                            <path d="M12 22 Q28 2 44 22 Q40 10 28 8 Q16 10 12 22" fill={hairColor} />
+                            <path d="M14 24 Q10 32 16 38" fill={hairColor} />
+                            <path d="M42 24 Q46 32 40 38" fill={hairColor} />
+                            <path d="M22 18 L28 26 L34 18" fill={hairColor} />
+                        </g>
                     ) : (
-                        <>
-                            <path d="M16 22 Q30 8 44 22 Q42 14 30 12 Q18 14 16 22" fill={hairColor} />
-                            <circle cx="44" cy="14" r="4" fill="#fbbf24" /><circle cx="44" cy="14" r="2" fill="#fde68a" />
-                        </>
+                        <g>
+                            <path d="M14 20 Q28 4 42 20 Q40 10 28 8 Q16 10 14 20" fill={hairColor} />
+                            <path d="M14 22 Q8 35 12 50" fill={hairColor} />
+                            <path d="M42 22 Q48 35 44 50" fill={hairColor} />
+                            {/* Floral detail */}
+                            <circle cx="42" cy="14" r="5" fill="#fbcfe8" />
+                            <circle cx="42" cy="14" r="2.5" fill="#f9a8d4" />
+                        </g>
                     )}
+
+                    {/* Synchronized Blinking Eyes */}
                     <g>
-                        <ellipse cx="25" cy="24" rx="2.5" ry="3.5" fill="white" />
-                        <motion.ellipse cx="25" cy="24" rx="2" ry="3" fill={isShadow ? "#374151" : "#78350f"}
-                            animate={{ scaleY: [1, 1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.2, repeatDelay: 3.5 }} />
-                        <ellipse cx="35" cy="24" rx="2.5" ry="3.5" fill="white" />
-                        <motion.ellipse cx="35" cy="24" rx="2" ry="3" fill={isShadow ? "#374151" : "#78350f"}
-                            animate={{ scaleY: [1, 1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.2, repeatDelay: 3.5, delay: 0.1 }} />
+                        <ellipse cx="23" cy="24" rx="3" ry="4" fill="white" />
+                        <motion.ellipse
+                            cx="23" cy="24" rx="2.5" ry="3.5"
+                            fill={isShadow ? "#374151" : "#78350f"}
+                            animate={{ scaleY: [1, 1, 0, 1] }}
+                            transition={{ repeat: Infinity, duration: 0.15, repeatDelay: 3.5 }}
+                        />
+                        <circle cx="24" cy="23" r="1" fill="white" opacity="0.8" />
+
+                        <ellipse cx="33" cy="24" rx="3" ry="4" fill="white" />
+                        <motion.ellipse
+                            cx="33" cy="24" rx="2.5" ry="3.5"
+                            fill={isShadow ? "#374151" : "#78350f"}
+                            animate={{ scaleY: [1, 1, 0, 1] }}
+                            transition={{ repeat: Infinity, duration: 0.15, repeatDelay: 3.5 }}
+                        />
+                        <circle cx="34" cy="23" r="1" fill="white" opacity="0.8" />
                     </g>
+
+                    {/* Expressions & Blush */}
+                    <g>
+                        <ellipse cx="19" cy="30" rx="3" ry="1.5" fill="#fca5a5" opacity="0.4" />
+                        <ellipse cx="37" cy="30" rx="3" ry="1.5" fill="#fca5a5" opacity="0.4" />
+                        <path d={getMouthPath()} stroke="#be123c" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                    </g>
+
+                    {/* Youthful Outfits */}
                     {isShadow ? (
-                        <path d="M20 38 L20 70 Q30 75 40 70 L40 38 Q30 42 20 38" fill={primary} />
+                        <path d="M20 38 L18 70 Q28 76 38 70 L36 38 Q28 42 20 38" fill={primary} />
                     ) : (
-                        <>
-                            <path d="M18 38 L16 72 Q30 78 44 72 L42 38 Q30 44 18 38" fill={primary} />
-                            <rect x="20" y="52" width="20" height="6" fill={accent} rx="1" />
-                        </>
+                        <g>
+                            <path d="M18 38 L14 72 Q28 78 42 72 L38 38 Q28 44 18 38" fill={primary} />
+                            <rect x="20" y="52" width="16" height="8" fill={accent} rx="2" stroke="white" strokeWidth="0.5" />
+                        </g>
                     )}
                 </svg>
 
                 {/* Mood Indicators */}
                 <AnimatePresence>
                     {character.mood === 'love' && (
-                        <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1, y: -20 }} exit={{ opacity: 0 }} className="absolute -top-2 left-1/2">
-                            <Heart className="w-4 h-4 text-pink-500 fill-pink-500 animate-bounce" />
+                        <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1, y: -25 }} exit={{ opacity: 0 }} className="absolute -top-4 left-1/2">
+                            <Heart className="w-5 h-5 text-pink-500 fill-pink-500 animate-pulse" />
                         </motion.div>
                     )}
-                    {character.mood === 'playing' && (
-                        <motion.div initial={{ opacity: 0, rotate: -45 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0 }} className="absolute -top-2 -right-2">
-                            <Gamepad2 className="w-5 h-5 text-yellow-500" />
+                    {character.mood === 'learning' && (
+                        <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1, rotate: [0, 15, -15, 0] }} exit={{ opacity: 0 }} className="absolute -top-3 -right-2">
+                            <Lightbulb className="w-5 h-5 text-yellow-500 fill-yellow-200" />
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                <div className={cn("absolute inset-0 -z-10 rounded-full blur-xl opacity-20 scale-150", isShadow ? "bg-cyan-500" : "bg-pink-500")} />
+                <div className={cn("absolute inset-0 -z-10 rounded-full blur-2xl opacity-30 scale-150", isShadow ? "bg-cyan-500" : "bg-pink-500")} />
             </motion.div>
         </motion.div>
     );
 }
+
