@@ -391,7 +391,7 @@ export default function Dashboard() {
         </div>
 
         {/* --- MAP CONTENT --- */}
-        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-0 lg:pl-0 lg:pr-12 xl:pr-20">
+        <div className="relative z-10 w-full pt-16 sm:pt-20 pb-32 sm:pb-48 px-0 lg:pl-0 lg:pr-12 xl:pr-20 overflow-x-hidden">
           <header className="mb-16 sm:mb-24 md:mb-32 text-center space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-top-12 duration-500">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 text-teal-300 text-[9px] font-mono tracking-[0.2em] uppercase backdrop-blur-sm relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
@@ -401,9 +401,9 @@ export default function Dashboard() {
               </span>
               <span className="animate-pulse">Neural Uplink Active</span>
             </div>
-            <div className="relative group">
+            <div className="relative group overflow-hidden max-w-full">
               <div className="absolute -inset-10 bg-gradient-to-r from-teal-500/20 via-indigo-500/20 to-pink-500/20 blur-[100px] opacity-20 group-hover:opacity-40 transition-opacity" />
-              <h1 className="text-5xl sm:text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-slate-500/50 drop-shadow-2xl relative z-10 filter brightness-125 animate-glitch">
+              <h1 className="text-5xl sm:text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-slate-500/50 drop-shadow-2xl relative z-10 filter brightness-125 animate-glitch truncate sm:whitespace-normal">
                 CAMPUS
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_3s_infinite] mix-blend-overlay pointer-events-none" />
               </h1>
