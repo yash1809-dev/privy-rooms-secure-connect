@@ -106,7 +106,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     const shadowRef = useRef<HTMLDivElement>(null);
     const sakuraRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [gameState, setGameState] = useState<'none' | 'hideSeek' | 'rps' | 'follow'>('none');
+    const [gameState, setGameState] = useState<'none' | 'hideSeek' | 'rps' | 'follow' | 'playing'>('none');
 
     const clampPosition = useCallback((x: number, y: number) => {
         const maxX = window.innerWidth - 70;
@@ -163,14 +163,35 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         return () => clearInterval(interval);
     }, [status, shadow.isDragging, sakura.isDragging, isGenerating, gameState, relationshipLevel, shadow.isHidden, sakura.isHidden]);
 
-    // Games Management Logic
+    // Games & Activities Management Logic
     useEffect(() => {
-        const triggerGame = async () => {
+        const triggerActivity = async () => {
             if (shadow.isDragging || sakura.isDragging || isGenerating || gameState !== 'none') return;
 
-            const gameRoll = Math.random();
-            if (gameRoll < 0.4) {
-                // Hide & Seek
+            const roll = Math.random();
+
+            if (roll < 0.25) {
+                // WATERING PLANT
+                setGameState('playing');
+                const who = Math.random() > 0.5 ? 'shadow' : 'sakura';
+                const setter = who === 'shadow' ? setShadow : setSakura;
+
+                // Coordinates for the plant container (middle-ish right on most screens)
+                const plantPos = { x: window.innerWidth - 300, y: window.innerHeight - 350 };
+
+                setter(prev => ({ ...prev, position: plantPos, mood: 'walking', currentThought: "Time to water the plant! 🚿" }));
+
+                setTimeout(() => {
+                    setter(prev => ({ ...prev, mood: 'happy', currentThought: "Growing so well! ✨" }));
+                    increaseRelationship(2);
+                    setTimeout(() => {
+                        setGameState('none');
+                        setter(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
+                    }, 4000);
+                }, 3000);
+
+            } else if (roll < 0.5) {
+                // HIDE & SEEK
                 setGameState('hideSeek');
                 const hider = Math.random() > 0.5 ? 'shadow' : 'sakura';
                 const seeker = hider === 'shadow' ? 'sakura' : 'shadow';
@@ -190,19 +211,19 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                     }, 3000);
                 }, 6000);
 
-            } else if (gameRoll < 0.7) {
-                // Rock Paper Scissors (Jan-ken-pon)
+            } else if (roll < 0.75) {
+                // ROCK PAPER SCISSORS
                 setGameState('rps');
                 const rpsMsg = await generateAIDialogue('shadow', "Challenge Sakura to Rock Paper Scissors!", relationshipLevel, conversationMemory);
                 setShadow(prev => ({ ...prev, currentThought: rpsMsg || "Jan-ken-pon!", mood: 'talking' }));
 
                 setTimeout(() => {
-                    const choices = ['rock', 'paper', 'scissors'];
+                    const choices = ['Rock ✊', 'Paper ✋', 'Scissors ✌️'];
                     const sChoice = choices[Math.floor(Math.random() * 3)];
                     const skChoice = choices[Math.floor(Math.random() * 3)];
 
-                    setShadow(prev => ({ ...prev, currentThought: `RPS: ${sChoice}!`, mood: 'playing' }));
-                    setSakura(prev => ({ ...prev, currentThought: `RPS: ${skChoice}!`, mood: 'playing' }));
+                    setShadow(prev => ({ ...prev, currentThought: sChoice, mood: 'playing' }));
+                    setSakura(prev => ({ ...prev, currentThought: skChoice, mood: 'playing' }));
 
                     setTimeout(() => {
                         setGameState('none');
@@ -212,7 +233,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 }, 3000);
 
             } else {
-                // Follow the leader
+                // FOLLOW THE LEADER
                 setGameState('follow');
                 const leader = Math.random() > 0.5 ? 'shadow' : 'sakura';
                 const follower = leader === 'shadow' ? 'sakura' : 'shadow';
@@ -230,7 +251,6 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
 
                 wander();
                 setTimeout(wander, 2000);
-                setTimeout(wander, 4000);
 
                 setTimeout(() => {
                     setGameState('none');
@@ -240,7 +260,7 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
             }
         };
 
-        const interval = setInterval(triggerGame, GAME_INTERVAL);
+        const interval = setInterval(triggerActivity, GAME_INTERVAL);
         return () => clearInterval(interval);
     }, [shadow.isDragging, sakura.isDragging, isGenerating, gameState, relationshipLevel]);
 
@@ -327,9 +347,9 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
 
 function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag, onDragEnd, onToggleMenu }: any) {
     const isShadow = type === 'shadow';
-    const hairColor = isShadow ? '#1a1a2e' : '#2d1b1b';
+    const hairColor = isShadow ? '#0f172a' : '#2d1b1b';
     const skinColor = '#fce4d6';
-    const primary = isShadow ? '#1e293b' : '#fda4af';
+    const primary = isShadow ? '#0f172a' : '#fda4af';
     const accent = isShadow ? '#67e8f9' : '#f9a8d4';
 
     const getMouthPath = () => {
@@ -387,7 +407,7 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         >
                             <div className={cn(
                                 "px-4 py-2.5 rounded-2xl shadow-2xl border text-[11px] sm:text-[13px] font-semibold leading-tight text-center whitespace-pre-wrap flex items-center justify-center",
-                                isShadow ? "bg-slate-900/95 border-cyan-500/40 text-cyan-50" : "bg-white/95 border-pink-200 text-pink-900"
+                                isShadow ? "bg-slate-900 border-cyan-500/40 text-cyan-50" : "bg-white border-pink-200 text-pink-900"
                             )}
                                 style={{ minWidth: "80px" }}
                             >
@@ -417,17 +437,22 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                     {/* Hair Back */}
                     <ellipse cx="28" cy="20" rx="16" ry="14" fill={hairColor} />
 
-                    {/* Face */}
-                    <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
+                    {/* Face & Head Shape */}
+                    {isShadow ? (
+                        // Masculine Sharp Jawline for Shadow
+                        <path d="M16 18 C16 8 40 8 40 18 L40 26 C40 34 32 38 28 38 C24 38 16 34 16 26 Z" fill={skinColor} stroke={isShadow ? "#1e293b" : "none"} strokeWidth="0.5" />
+                    ) : (
+                        <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
+                    )}
 
                     {/* Modern Hair Design */}
                     {isShadow ? (
                         <g>
-                            {/* Fuller youthful hair for Shadow */}
-                            <path d="M12 22 Q28 2 44 22 Q40 10 28 8 Q16 10 12 22" fill={hairColor} />
-                            <path d="M14 24 Q10 32 16 38" fill={hairColor} />
-                            <path d="M42 24 Q46 32 40 38" fill={hairColor} />
-                            <path d="M22 18 L28 26 L34 18" fill={hairColor} />
+                            {/* Sharp masculine hair for Shadow */}
+                            <path d="M14 16 Q28 0 42 16 Q38 8 28 8 Q18 8 14 16" fill={hairColor} />
+                            <path d="M16 18 L16 26 L22 20" fill={hairColor} /> {/* Sharp side cut */}
+                            <path d="M40 18 L40 26 L34 20" fill={hairColor} /> {/* Sharp side cut */}
+                            <path d="M22 14 L28 22 L34 14" fill={hairColor} /> {/* Front spikes */}
                         </g>
                     ) : (
                         <g>
@@ -442,10 +467,18 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
 
                     {/* Synchronized Blinking Eyes */}
                     <g>
+                        {/* Eyebrows (Shadow's thicker for masculinity) */}
+                        {isShadow && (
+                            <g opacity="0.8">
+                                <path d="M18 18 L26 17" stroke={hairColor} strokeWidth="1.5" strokeLinecap="round" />
+                                <path d="M30 17 L38 18" stroke={hairColor} strokeWidth="1.5" strokeLinecap="round" />
+                            </g>
+                        )}
+
                         <ellipse cx="23" cy="24" rx="3" ry="4" fill="white" />
                         <motion.ellipse
                             cx="23" cy="24" rx="2.5" ry="3.5"
-                            fill={isShadow ? "#374151" : "#78350f"}
+                            fill={isShadow ? "#0f172a" : "#78350f"}
                             animate={{ scaleY: [1, 1, 0, 1] }}
                             transition={{ repeat: Infinity, duration: 0.15, repeatDelay: 3.5 }}
                         />
@@ -454,7 +487,7 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         <ellipse cx="33" cy="24" rx="3" ry="4" fill="white" />
                         <motion.ellipse
                             cx="33" cy="24" rx="2.5" ry="3.5"
-                            fill={isShadow ? "#374151" : "#78350f"}
+                            fill={isShadow ? "#0f172a" : "#78350f"}
                             animate={{ scaleY: [1, 1, 0, 1] }}
                             transition={{ repeat: Infinity, duration: 0.15, repeatDelay: 3.5 }}
                         />
@@ -470,7 +503,7 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
 
                     {/* Youthful Outfits */}
                     {isShadow ? (
-                        <path d="M20 38 L18 70 Q28 76 38 70 L36 38 Q28 42 20 38" fill={primary} />
+                        <path d="M18 38 L16 70 Q28 76 40 70 L38 38 Q28 42 18 38" fill={primary} />
                     ) : (
                         <g>
                             <path d="M18 38 L14 72 Q28 78 42 72 L38 38 Q28 44 18 38" fill={primary} />
@@ -498,4 +531,3 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
         </motion.div>
     );
 }
-
