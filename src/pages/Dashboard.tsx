@@ -197,7 +197,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-foreground overflow-hidden selection:bg-teal-500/30 relative">
+    <div className="flex h-screen bg-slate-950 text-foreground overflow-hidden selection:bg-teal-500/30 relative max-w-[100vw]">
 
       {/* --- LAPTOP SIDEBAR --- */}
       <DashboardSidebar
@@ -840,15 +840,15 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
     <section
       id={id} ref={ref}
       className={cn(
-        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-500 ease-out p-6 sm:p-10 md:p-16 lg:px-0 lg:py-24 lg:pl-0.5 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-24 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
+        "min-h-[85vh] w-full flex flex-col justify-center transition-all duration-500 ease-out p-5 sm:p-10 md:p-16 lg:px-0 lg:py-24 lg:pl-0.5 rounded-[2rem] sm:rounded-[4rem] border border-white/5 mb-12 sm:mb-40 relative group overflow-hidden backdrop-blur-[2px]",
         isVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-40 scale-95"
       )}
     >
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-700", colorClasses[color])} />
 
-      <div className="mb-20 flex items-center gap-10 relative z-10">
-        <div className={cn("w-20 h-20 rounded-[2rem] flex items-center justify-center bg-slate-900 border shadow-2xl transition-transform group-hover:rotate-12 duration-500", colorClasses[color])}>
-          <Icon className="text-white w-10 h-10 drop-shadow-lg" />
+      <div className="mb-10 sm:mb-20 flex items-center gap-4 sm:gap-10 relative z-10">
+        <div className={cn("w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[2rem] flex items-center justify-center bg-slate-900 border shadow-2xl transition-transform group-hover:rotate-12 duration-500", colorClasses[color])}>
+          <Icon className="text-white w-7 h-7 sm:w-10 sm:h-10 drop-shadow-lg" />
         </div>
         <div>
           <div className="flex items-center justify-between mb-8 group-hover:transform group-hover:translate-x-2 transition-transform duration-500">
