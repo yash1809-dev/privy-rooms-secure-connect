@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Sparkles, Heart, MessageCircle, Zap, Shield, Activity } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Sparkles, Heart, MessageCircle, Star } from "lucide-react";
 import { useStoryProgress } from "@/contexts/StoryProgressProvider";
 import { toast } from "sonner";
 
@@ -19,51 +18,86 @@ interface Character {
     position: { x: number; y: number };
     mood: Mood;
     currentThought: string | null;
-    isWatering: boolean;
-    isTeleporting: boolean;
     showInteractionMenu: boolean;
     isDragging: boolean;
 }
 
-// Idle dialogue system - Tech/productivity themed
-const IDLE_DIALOGUES = [
-    { type: 'shadow', text: "Systems nominal." },
-    { type: 'sakura', text: "All clear here." },
-    { type: 'shadow', text: "Focus levels optimal." },
-    { type: 'sakura', text: "You're doing great!" },
-    { type: 'shadow', text: "Ready when you are." },
-    { type: 'sakura', text: "Stay productive!" },
-    { type: 'conversation', shadow: "Status report?", sakura: "All systems go!" },
-    { type: 'conversation', shadow: "Nice progress today.", sakura: "Agreed." },
-    { type: 'shadow', text: "Monitoring active." },
-    { type: 'sakura', text: "Keep it up!" },
-];
+// AI Personality Prompts
+const SHADOW_PERSONALITY = `You are Shadow, a cool but caring AI companion in CollegeOS. You're protective of users and deeply love Sakura. Keep responses under 12 words. Be supportive about productivity. Sometimes be flirty with Sakura.`;
+const SAKURA_PERSONALITY = `You are Sakura, a warm cheerful AI companion in CollegeOS. You love Shadow and care about users. Keep responses under 12 words. Be encouraging about tasks. Sometimes be playful with Shadow.`;
 
-const PET_DIALOGUES = ["Thanks!", "Appreciated.", "System boost!", "Energy +10%"];
-const TALK_DIALOGUES = ["At your service.", "Ready for tasks.", "Understood.", "Acknowledged."];
+// Fallback dialogues when API fails
+const FALLBACK_DIALOGUES = {
+    shadow: [
+        "Stay focused, you've got this.",
+        "I'm here for you.",
+        "Nice progress today!",
+        "Keep pushing forward.",
+        "Sakura and I believe in you.",
+        "Systems are looking good.",
+    ],
+    sakura: [
+        "You're doing amazing!",
+        "I'm proud of you! ✨",
+        "Shadow agrees you're the best!",
+        "Keep up the great work!",
+        "We're cheering for you!",
+        "Almost there, don't give up!",
+    ],
+    love: [
+        { shadow: "You look beautiful today.", sakura: "Shadow... *blushes*" },
+        { shadow: "I'll always protect you.", sakura: "My hero! 💕" },
+        { shadow: "Stay close to me.", sakura: "Always! ❤️" },
+        { shadow: "You're my favorite.", sakura: "And you're mine!" },
+    ],
+};
 
-const MARGIN = 60; // Safe margin from screen edges
+const MARGIN = 40;
 const ROAM_INTERVAL = 20000;
-const IDLE_TALK_INTERVAL = 25000;
+const IDLE_TALK_INTERVAL = 18000;
+
+// AI Service - Uses LLM7.io (free, no API key)
+async function generateAIResponse(character: 'shadow' | 'sakura', context: string): Promise<string | null> {
+    try {
+        const response = await fetch("https://api.llm7.io/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [
+                    {
+                        role: "system",
+                        content: character === 'shadow' ? SHADOW_PERSONALITY : SAKURA_PERSONALITY
+                    },
+                    { role: "user", content: context }
+                ],
+                max_tokens: 30,
+                temperature: 0.9
+            })
+        });
+
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || null;
+    } catch {
+        return null;
+    }
+}
 
 export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCoupleProps) {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { increaseRelationship, incrementQuestProgress } = useStoryProgress();
+    const { increaseRelationship, incrementQuestProgress, relationshipLevel } = useStoryProgress();
 
     const getInitialPos = (offsetX: number) => ({
         x: Math.min(window.innerWidth - 100, Math.max(MARGIN, window.innerWidth - offsetX)),
-        y: Math.min(window.innerHeight - 150, Math.max(MARGIN, window.innerHeight - 200))
+        y: Math.min(window.innerHeight - 180, Math.max(MARGIN, window.innerHeight - 200))
     });
 
     const [ninja, setNinja] = useState<Character>({
         id: 'ninja',
         name: 'Shadow',
-        position: getInitialPos(120),
+        position: getInitialPos(130),
         mood: 'idle',
         currentThought: null,
-        isWatering: false,
-        isTeleporting: false,
         showInteractionMenu: false,
         isDragging: false,
     });
@@ -71,81 +105,113 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
     const [kunoichi, setKunoichi] = useState<Character>({
         id: 'kunoichi',
         name: 'Sakura',
-        position: getInitialPos(220),
+        position: getInitialPos(230),
         mood: 'idle',
         currentThought: null,
-        isWatering: false,
-        isTeleporting: false,
         showInteractionMenu: false,
         isDragging: false,
     });
 
     const ninjaRef = useRef<HTMLDivElement>(null);
     const kunoichiRef = useRef<HTMLDivElement>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
 
-    // Clamp position to viewport
-    const clampPosition = useCallback((x: number, y: number) => ({
-        x: Math.max(MARGIN, Math.min(window.innerWidth - MARGIN - 80, x)),
-        y: Math.max(MARGIN, Math.min(window.innerHeight - MARGIN - 120, y))
-    }), []);
+    // Clamp position to viewport - FIXED for all edges
+    const clampPosition = useCallback((x: number, y: number) => {
+        const maxX = window.innerWidth - 80;
+        const maxY = window.innerHeight - 120;
+        return {
+            x: Math.max(MARGIN, Math.min(maxX, x)),
+            y: Math.max(MARGIN, Math.min(maxY, y))
+        };
+    }, []);
 
-    // Notify parent of position changes for minimap
+    // Notify parent of position changes
     useEffect(() => {
         onPositionChange?.(ninja.position, kunoichi.position);
     }, [ninja.position, kunoichi.position, onPositionChange]);
 
-    // Idle Dialogue System
+    // AI-Powered Idle Dialogue System
     useEffect(() => {
-        if (status === 'focusing' || ninja.isDragging || kunoichi.isDragging) return;
+        if (status === 'focusing' || ninja.isDragging || kunoichi.isDragging || isGenerating) return;
 
-        const showIdleDialogue = () => {
-            const dialogue = IDLE_DIALOGUES[Math.floor(Math.random() * IDLE_DIALOGUES.length)];
+        const showIdleDialogue = async () => {
+            if (ninja.currentThought || kunoichi.currentThought) return;
+            setIsGenerating(true);
 
-            if (dialogue.type === 'shadow') {
-                setNinja(prev => ({ ...prev, currentThought: dialogue.text, mood: 'talking' }));
-                setTimeout(() => setNinja(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
-            } else if (dialogue.type === 'sakura') {
-                setKunoichi(prev => ({ ...prev, currentThought: dialogue.text, mood: 'talking' }));
-                setTimeout(() => setKunoichi(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
-            } else if (dialogue.type === 'conversation') {
-                setNinja(prev => ({ ...prev, currentThought: dialogue.shadow, mood: 'talking' }));
-                setTimeout(() => {
-                    setKunoichi(prev => ({ ...prev, currentThought: dialogue.sakura, mood: 'talking' }));
-                }, 1500);
+            // Decide interaction type
+            const isLoveInteraction = Math.random() > 0.6 && relationshipLevel > 10;
+
+            if (isLoveInteraction) {
+                // Love dialogue between characters
+                const loveDialogue = FALLBACK_DIALOGUES.love[Math.floor(Math.random() * FALLBACK_DIALOGUES.love.length)];
+
+                // Try AI generation first
+                const shadowAI = await generateAIResponse('shadow', 'Say something romantic to Sakura');
+                const shadow = shadowAI || loveDialogue.shadow;
+
+                setNinja(prev => ({ ...prev, currentThought: shadow, mood: 'love' }));
+
+                setTimeout(async () => {
+                    const sakuraAI = await generateAIResponse('sakura', `Shadow said: "${shadow}". Reply lovingly.`);
+                    const sakura = sakuraAI || loveDialogue.sakura;
+                    setKunoichi(prev => ({ ...prev, currentThought: sakura, mood: 'love' }));
+                }, 2000);
+
                 setTimeout(() => {
                     setNinja(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
                     setKunoichi(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
-                }, 5000);
+                }, 6000);
+            } else {
+                // Individual dialogue
+                const who = Math.random() > 0.5 ? 'shadow' : 'sakura';
+                const setter = who === 'shadow' ? setNinja : setKunoichi;
+
+                const aiResponse = await generateAIResponse(who, 'Give a short motivational message about studying or productivity');
+                const fallback = FALLBACK_DIALOGUES[who][Math.floor(Math.random() * FALLBACK_DIALOGUES[who].length)];
+
+                setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'talking' }));
+                setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
             }
+
+            setIsGenerating(false);
         };
 
         const interval = setInterval(showIdleDialogue, IDLE_TALK_INTERVAL);
-        return () => clearInterval(interval);
-    }, [status, ninja.isDragging, kunoichi.isDragging]);
+        // Initial dialogue after 3 seconds
+        const timeout = setTimeout(showIdleDialogue, 3000);
 
-    // Free Roaming Logic - Both roam independently
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [status, ninja.isDragging, kunoichi.isDragging, ninja.currentThought, kunoichi.currentThought, isGenerating, relationshipLevel]);
+
+    // Free Roaming
     useEffect(() => {
         const roam = () => {
             if (ninja.isDragging || kunoichi.isDragging || status === 'focusing') return;
-            if (ninja.currentThought || kunoichi.currentThought) return; // Don't move while talking
+            if (ninja.currentThought || kunoichi.currentThought) return;
 
-            const shouldNinjaRoam = Math.random() > 0.5;
-            const shouldSakuraRoam = Math.random() > 0.5;
+            const shouldNinjaRoam = Math.random() > 0.6;
+            const shouldSakuraRoam = Math.random() > 0.6;
 
             if (shouldNinjaRoam) {
                 const newPos = clampPosition(
-                    Math.random() * (window.innerWidth - 150) + 50,
-                    Math.random() * (window.innerHeight - 200) + 50
+                    Math.random() * (window.innerWidth - 150) + MARGIN,
+                    Math.random() * (window.innerHeight - 200) + MARGIN
                 );
-                walkCharacter('ninja', newPos.x, newPos.y);
+                setNinja(prev => ({ ...prev, mood: 'walking', position: newPos }));
+                setTimeout(() => setNinja(prev => ({ ...prev, mood: 'idle' })), 1000);
             }
 
             if (shouldSakuraRoam) {
                 const newPos = clampPosition(
-                    Math.random() * (window.innerWidth - 150) + 50,
-                    Math.random() * (window.innerHeight - 200) + 50
+                    Math.random() * (window.innerWidth - 150) + MARGIN,
+                    Math.random() * (window.innerHeight - 200) + MARGIN
                 );
-                walkCharacter('kunoichi', newPos.x, newPos.y);
+                setKunoichi(prev => ({ ...prev, mood: 'walking', position: newPos }));
+                setTimeout(() => setKunoichi(prev => ({ ...prev, mood: 'idle' })), 1000);
             }
         };
 
@@ -153,91 +219,29 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         return () => clearInterval(interval);
     }, [ninja.isDragging, kunoichi.isDragging, ninja.currentThought, kunoichi.currentThought, status, clampPosition]);
 
-    // Handle focus status
-    useEffect(() => {
-        if (status === 'focusing') {
-            const plant = document.getElementById('focus-plant-container');
-            if (plant) {
-                const rect = plant.getBoundingClientRect();
-                const whoWaters = Math.random() > 0.5 ? 'ninja' : 'kunoichi';
-                const pos = clampPosition(rect.left + rect.width / 2, rect.top + rect.height / 2);
-
-                if (whoWaters === 'ninja') {
-                    walkCharacter('ninja', pos.x + 40, pos.y, true);
-                    setKunoichi(prev => ({ ...prev, currentThought: "Focus mode active.", mood: 'talking' }));
-                    setTimeout(() => setKunoichi(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 2000);
-                    incrementQuestProgress('water');
-                } else {
-                    walkCharacter('kunoichi', pos.x - 40, pos.y, true);
-                    setNinja(prev => ({ ...prev, currentThought: "Supporting.", mood: 'talking' }));
-                    setTimeout(() => setNinja(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 2000);
-                    incrementQuestProgress('water');
-                }
-            }
-        }
-    }, [status, incrementQuestProgress, clampPosition]);
-
-    const walkCharacter = useCallback((charId: 'ninja' | 'kunoichi', newX: number, newY: number, startWatering = false) => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const clampedPos = clampPosition(newX, newY);
-        setter(prev => ({ ...prev, mood: 'walking', position: clampedPos }));
-        setTimeout(() => {
-            setter(prev => ({ ...prev, isWatering: startWatering, mood: startWatering ? 'focusing' : 'idle' }));
-        }, 1000);
-    }, [clampPosition]);
-
-    const teleportCharacter = useCallback((charId: 'ninja' | 'kunoichi', newX: number, newY: number, shouldStrike = false) => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const clampedPos = clampPosition(newX, newY);
-        setter(prev => ({ ...prev, isTeleporting: true }));
-        setTimeout(() => {
-            setter(prev => ({ ...prev, position: clampedPos, mood: shouldStrike ? 'striking' : prev.mood }));
-            setTimeout(() => {
-                setter(prev => ({ ...prev, isTeleporting: false }));
-                if (shouldStrike) {
-                    setTimeout(() => setter(prev => ({ ...prev, mood: 'idle' })), 800);
-                }
-            }, 300);
-        }, 300);
-    }, [clampPosition]);
-
-    // Button protection
-    useEffect(() => {
-        const handleGlobalClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const isInteraction = target.closest('button') || target.closest('a');
-
-            if (isInteraction && !ninjaRef.current?.contains(target) && !kunoichiRef.current?.contains(target)) {
-                const rect = (target.closest('button') || target.closest('a'))!.getBoundingClientRect();
-                const whoStrikes = Math.random() > 0.5 ? 'ninja' : 'kunoichi';
-                teleportCharacter(whoStrikes, rect.left - 20, rect.top - 20, true);
-                incrementQuestProgress('button');
-            }
-        };
-
-        window.addEventListener('mousedown', handleGlobalClick);
-        return () => window.removeEventListener('mousedown', handleGlobalClick);
-    }, [teleportCharacter, incrementQuestProgress]);
-
-    // Character interactions
+    // Handlers
     const handleCharacterClick = (charId: 'ninja' | 'kunoichi') => {
         const setter = charId === 'ninja' ? setNinja : setKunoichi;
         setter(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }));
     };
 
-    const handlePet = (charId: 'ninja' | 'kunoichi') => {
+    const handlePet = async (charId: 'ninja' | 'kunoichi') => {
         const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const dialogue = PET_DIALOGUES[Math.floor(Math.random() * PET_DIALOGUES.length)];
-        setter(prev => ({ ...prev, currentThought: dialogue, mood: 'happy', showInteractionMenu: false }));
+        const aiResponse = await generateAIResponse(charId === 'ninja' ? 'shadow' : 'sakura', 'User pet you affectionately. React sweetly.');
+        const fallback = charId === 'ninja' ? "Thanks... *happy*" : "Yay! Love you! 💕";
+
+        setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'happy', showInteractionMenu: false }));
         increaseRelationship(2);
-        toast.success("💕 Bond Strengthened!", { description: `${charId === 'ninja' ? 'Shadow' : 'Sakura'} sync improved!`, duration: 2000 });
+        toast.success("💕 Bond +2!", { duration: 2000 });
         setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 3000);
     };
 
-    const handleTalk = (charId: 'ninja' | 'kunoichi') => {
+    const handleTalk = async (charId: 'ninja' | 'kunoichi') => {
         const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const dialogue = TALK_DIALOGUES[Math.floor(Math.random() * TALK_DIALOGUES.length)];
-        setter(prev => ({ ...prev, currentThought: dialogue, mood: 'talking', showInteractionMenu: false }));
+        const aiResponse = await generateAIResponse(charId === 'ninja' ? 'shadow' : 'sakura', 'User wants to talk. Say something encouraging.');
+        const fallback = charId === 'ninja' ? "Ready to help." : "What's up? 😊";
+
+        setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'talking', showInteractionMenu: false }));
         increaseRelationship(1);
         incrementQuestProgress('conversation');
         setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 3000);
@@ -248,28 +252,20 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         setter(prev => ({ ...prev, isDragging: true, showInteractionMenu: false, currentThought: null }));
     };
 
-    const handleDragEnd = (charId: 'ninja' | 'kunoichi', info: any) => {
+    const handleDrag = (charId: 'ninja' | 'kunoichi', info: any) => {
         const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const clampedPos = clampPosition(info.point.x - 40, info.point.y - 50);
-        setter(prev => ({
-            ...prev,
-            isDragging: false,
-            position: clampedPos,
-            mood: 'idle'
-        }));
+        const clamped = clampPosition(info.point.x - 40, info.point.y - 50);
+        setter(prev => ({ ...prev, position: clamped }));
     };
 
-    // Get drag constraints
-    const getDragConstraints = () => ({
-        left: MARGIN,
-        right: window.innerWidth - MARGIN - 80,
-        top: MARGIN,
-        bottom: window.innerHeight - MARGIN - 120
-    });
+    const handleDragEnd = (charId: 'ninja' | 'kunoichi') => {
+        const setter = charId === 'ninja' ? setNinja : setKunoichi;
+        setter(prev => ({ ...prev, isDragging: false, mood: 'idle' }));
+    };
 
     return (
         <>
-            <HolographicAvatar
+            <CuteCharacter
                 character={ninja}
                 charRef={ninjaRef}
                 theme="cyan"
@@ -277,10 +273,10 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onPet={() => handlePet('ninja')}
                 onTalk={() => handleTalk('ninja')}
                 onDragStart={() => handleDragStart('ninja')}
-                onDragEnd={(info: any) => handleDragEnd('ninja', info)}
-                dragConstraints={getDragConstraints()}
+                onDrag={(info: any) => handleDrag('ninja', info)}
+                onDragEnd={() => handleDragEnd('ninja')}
             />
-            <HolographicAvatar
+            <CuteCharacter
                 character={kunoichi}
                 charRef={kunoichiRef}
                 theme="pink"
@@ -288,15 +284,15 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
                 onPet={() => handlePet('kunoichi')}
                 onTalk={() => handleTalk('kunoichi')}
                 onDragStart={() => handleDragStart('kunoichi')}
-                onDragEnd={(info: any) => handleDragEnd('kunoichi', info)}
-                dragConstraints={getDragConstraints()}
+                onDrag={(info: any) => handleDrag('kunoichi', info)}
+                onDragEnd={() => handleDragEnd('kunoichi')}
             />
         </>
     );
 }
 
-// Professional Holographic AI Avatar Component
-function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, onDragStart, onDragEnd, dragConstraints }: {
+// Cute Anime-Style Character Component
+function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDragStart, onDrag, onDragEnd }: {
     character: Character;
     charRef: React.RefObject<HTMLDivElement>;
     theme: 'cyan' | 'pink';
@@ -304,18 +300,20 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
     onPet: () => void;
     onTalk: () => void;
     onDragStart: () => void;
-    onDragEnd: (info: any) => void;
-    dragConstraints: { left: number; right: number; top: number; bottom: number };
+    onDrag: (info: any) => void;
+    onDragEnd: () => void;
 }) {
-    const colors = theme === 'cyan'
-        ? { primary: 'cyan', glow: 'rgba(6, 182, 212, 0.6)', accent: '#22d3ee', bg: 'from-cyan-500/20' }
-        : { primary: 'pink', glow: 'rgba(236, 72, 153, 0.6)', accent: '#f472b6', bg: 'from-pink-500/20' };
+    const isShadow = theme === 'cyan';
+    const primaryColor = isShadow ? 'cyan' : 'pink';
+    const eyeColor = isShadow ? '#67e8f9' : '#f9a8d4';
+    const hairColor = isShadow ? '#1e293b' : '#fda4af';
+    const skinColor = '#fde7d9';
 
-    const getBubbleStyle = () => {
+    const getBubbleStyle = (): React.CSSProperties => {
         const x = character.position.x;
         const w = window.innerWidth;
-        if (x > w - 180) return { right: '100%', marginRight: '8px' };
-        if (x < 180) return { left: '100%', marginLeft: '8px' };
+        if (x > w - 200) return { right: '100%', marginRight: '8px', top: '10px' };
+        if (x < 200) return { left: '100%', marginLeft: '8px', top: '10px' };
         return { left: '50%', transform: 'translateX(-50%)', bottom: '100%', marginBottom: '8px' };
     };
 
@@ -324,9 +322,9 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
             drag
             dragMomentum={false}
             dragElastic={0}
-            dragConstraints={dragConstraints}
             onDragStart={onDragStart}
-            onDragEnd={(e, info) => onDragEnd(info)}
+            onDrag={(e, info) => onDrag(info)}
+            onDragEnd={onDragEnd}
             className="fixed z-[9999] cursor-grab active:cursor-grabbing touch-none select-none"
             style={{
                 left: character.position.x,
@@ -337,13 +335,13 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
             <motion.div
                 ref={charRef}
                 animate={{
-                    scale: character.isTeleporting ? 0 : 1,
-                    y: character.mood === 'walking' ? [0, -4, 0] : 0,
+                    y: character.mood === 'walking' ? [0, -3, 0] : [0, -2, 0],
+                    scale: character.isDragging ? 1.1 : 1,
                 }}
-                transition={{ y: { repeat: Infinity, duration: 0.5 } }}
-                className="relative w-20 h-28 group"
+                transition={{ y: { repeat: Infinity, duration: character.mood === 'walking' ? 0.3 : 2 } }}
+                className="relative w-16 h-20 group"
                 onClick={onClick}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.08 }}
             >
                 {/* Interaction Menu */}
                 <AnimatePresence>
@@ -352,17 +350,17 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
                             initial={{ opacity: 0, scale: 0.8, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute -top-14 left-1/2 -translate-x-1/2 flex gap-2 z-50"
+                            className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-2 z-50"
                         >
                             <button onClick={(e) => { e.stopPropagation(); onPet(); }}
-                                className={cn("p-2 rounded-full shadow-lg border transition-transform hover:scale-110",
-                                    theme === 'cyan' ? "bg-slate-900 border-cyan-500/50" : "bg-slate-900 border-pink-500/50")}>
-                                <Heart className={cn("w-4 h-4", theme === 'cyan' ? "text-cyan-400" : "text-pink-400")} />
+                                className={cn("p-2 rounded-full shadow-lg transition-transform hover:scale-110",
+                                    isShadow ? "bg-cyan-500/20 border border-cyan-400" : "bg-pink-500/20 border border-pink-400")}>
+                                <Heart className={cn("w-4 h-4", isShadow ? "text-cyan-400" : "text-pink-400")} fill="currentColor" />
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); onTalk(); }}
-                                className={cn("p-2 rounded-full shadow-lg border transition-transform hover:scale-110",
-                                    theme === 'cyan' ? "bg-slate-900 border-cyan-500/50" : "bg-slate-900 border-pink-500/50")}>
-                                <MessageCircle className={cn("w-4 h-4", theme === 'cyan' ? "text-cyan-400" : "text-pink-400")} />
+                                className={cn("p-2 rounded-full shadow-lg transition-transform hover:scale-110",
+                                    isShadow ? "bg-cyan-500/20 border border-cyan-400" : "bg-pink-500/20 border border-pink-400")}>
+                                <MessageCircle className={cn("w-4 h-4", isShadow ? "text-cyan-400" : "text-pink-400")} />
                             </button>
                         </motion.div>
                     )}
@@ -375,12 +373,12 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute z-50 pointer-events-none whitespace-nowrap"
+                            className="absolute z-50 pointer-events-none max-w-[180px]"
                             style={getBubbleStyle()}
                         >
                             <div className={cn(
-                                "px-3 py-2 rounded-xl shadow-xl border text-xs font-medium",
-                                theme === 'cyan' ? "bg-slate-900/95 border-cyan-500/40 text-cyan-100" : "bg-slate-900/95 border-pink-500/40 text-pink-100"
+                                "px-3 py-2 rounded-2xl shadow-xl border text-[11px] font-medium leading-tight",
+                                isShadow ? "bg-slate-900/95 border-cyan-400/50 text-cyan-50" : "bg-white/95 border-pink-300 text-pink-900"
                             )}>
                                 {character.currentThought}
                             </div>
@@ -388,97 +386,127 @@ function HolographicAvatar({ character, charRef, theme, onClick, onPet, onTalk, 
                     )}
                 </AnimatePresence>
 
-                {/* HOLOGRAPHIC AI AVATAR */}
-                <div className="relative w-full h-full flex flex-col items-center">
+                {/* CUTE CHARACTER SVG */}
+                <svg viewBox="0 0 64 80" className="w-full h-full drop-shadow-lg">
+                    {/* Hair Back */}
+                    <ellipse cx="32" cy="22" rx="18" ry="16" fill={hairColor} />
 
-                    {/* Outer Glow Ring */}
-                    <motion.div
-                        animate={{ rotate: 360, opacity: [0.3, 0.6, 0.3] }}
-                        transition={{ rotate: { repeat: Infinity, duration: 8, ease: 'linear' }, opacity: { repeat: Infinity, duration: 2 } }}
-                        className={cn("absolute inset-0 rounded-full border-2 border-dashed opacity-40",
-                            theme === 'cyan' ? "border-cyan-500" : "border-pink-500")}
-                        style={{ width: '100%', height: '100%' }}
+                    {/* Face */}
+                    <ellipse cx="32" cy="28" rx="14" ry="13" fill={skinColor} />
+
+                    {/* Hair Front */}
+                    {isShadow ? (
+                        <>
+                            <path d="M18 22 Q32 8 46 22 Q44 16 32 14 Q20 16 18 22" fill={hairColor} />
+                            <path d="M20 20 L24 26 L22 20" fill={hairColor} />
+                            <path d="M44 20 L40 26 L42 20" fill={hairColor} />
+                        </>
+                    ) : (
+                        <>
+                            <path d="M16 24 Q32 6 48 24 Q46 14 32 12 Q18 14 16 24" fill={hairColor} />
+                            <ellipse cx="22" cy="18" rx="3" ry="4" fill={hairColor} />
+                            <ellipse cx="42" cy="18" rx="3" ry="4" fill={hairColor} />
+                            {/* Flower accessory */}
+                            <circle cx="46" cy="16" r="4" fill="#fbbf24" />
+                            <circle cx="46" cy="16" r="2" fill="#fcd34d" />
+                        </>
+                    )}
+
+                    {/* Eyes */}
+                    <g>
+                        {/* Left Eye */}
+                        <ellipse cx="26" cy="28" rx="4" ry="4.5" fill="white" />
+                        <motion.ellipse
+                            cx="26" cy="28" rx="3" ry="3.5"
+                            fill={eyeColor}
+                            animate={{ scaleY: [1, 1, 0.1, 1] }}
+                            transition={{ repeat: Infinity, duration: 4, repeatDelay: 2 }}
+                        />
+                        <circle cx="27" cy="27" r="1.5" fill="white" opacity="0.8" />
+                        <circle cx="26" cy="29" r="2" fill="#1a1a2e" />
+
+                        {/* Right Eye */}
+                        <ellipse cx="38" cy="28" rx="4" ry="4.5" fill="white" />
+                        <motion.ellipse
+                            cx="38" cy="28" rx="3" ry="3.5"
+                            fill={eyeColor}
+                            animate={{ scaleY: [1, 1, 0.1, 1] }}
+                            transition={{ repeat: Infinity, duration: 4, repeatDelay: 2, delay: 0.1 }}
+                        />
+                        <circle cx="39" cy="27" r="1.5" fill="white" opacity="0.8" />
+                        <circle cx="38" cy="29" r="2" fill="#1a1a2e" />
+                    </g>
+
+                    {/* Blush */}
+                    <ellipse cx="21" cy="32" rx="3" ry="1.5" fill="#fca5a5" opacity="0.5" />
+                    <ellipse cx="43" cy="32" rx="3" ry="1.5" fill="#fca5a5" opacity="0.5" />
+
+                    {/* Mouth */}
+                    {character.mood === 'happy' || character.mood === 'love' ? (
+                        <path d="M28 35 Q32 39 36 35" stroke="#e11d48" strokeWidth="1.5" fill="none" />
+                    ) : (
+                        <ellipse cx="32" cy="35" rx="2" ry="1" fill="#e11d48" opacity="0.6" />
+                    )}
+
+                    {/* Body */}
+                    <path
+                        d={isShadow
+                            ? "M22 40 Q22 42 20 50 L20 70 Q32 75 44 70 L44 50 Q42 42 42 40 Q32 44 22 40"
+                            : "M20 40 Q18 45 18 55 L18 70 Q32 78 46 70 L46 55 Q46 45 44 40 Q32 46 20 40"
+                        }
+                        fill={isShadow ? '#1e293b' : '#fda4af'}
                     />
 
-                    {/* HEAD: Digital Visor */}
-                    <div className={cn(
-                        "relative z-20 w-14 h-12 rounded-[1rem] shadow-xl flex items-center justify-center overflow-hidden",
-                        "bg-gradient-to-b from-slate-800 to-slate-900 border",
-                        theme === 'cyan' ? "border-cyan-500/50" : "border-pink-500/50"
-                    )}>
-                        {/* Visor Display */}
-                        <div className={cn(
-                            "w-10 h-4 rounded-full flex items-center justify-center gap-1",
-                            "bg-gradient-to-r",
-                            theme === 'cyan' ? "from-cyan-500/20 via-cyan-400/40 to-cyan-500/20" : "from-pink-500/20 via-pink-400/40 to-pink-500/20"
-                        )}>
-                            {/* Eyes as scanning lines */}
-                            <motion.div
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ repeat: Infinity, duration: 1.5 }}
-                                className={cn("w-2 h-2 rounded-full", theme === 'cyan' ? "bg-cyan-400" : "bg-pink-400")}
-                            />
-                            <motion.div
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}
-                                className={cn("w-2 h-2 rounded-full", theme === 'cyan' ? "bg-cyan-400" : "bg-pink-400")}
-                            />
-                        </div>
+                    {/* Outfit details */}
+                    {isShadow ? (
+                        <path d="M28 45 L32 55 L36 45" stroke="#67e8f9" strokeWidth="1" fill="none" opacity="0.6" />
+                    ) : (
+                        <>
+                            <path d="M26 50 Q32 52 38 50" stroke="white" strokeWidth="1" fill="none" opacity="0.4" />
+                            <circle cx="32" cy="48" r="2" fill="white" opacity="0.3" />
+                        </>
+                    )}
+                </svg>
 
-                        {/* Data Lines */}
-                        <motion.div
-                            animate={{ x: [-20, 20] }}
-                            transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-                            className={cn("absolute bottom-1 h-[1px] w-8", theme === 'cyan' ? "bg-cyan-500/50" : "bg-pink-500/50")}
-                        />
-                    </div>
+                {/* Love particles for love mood */}
+                <AnimatePresence>
+                    {character.mood === 'love' && (
+                        <>
+                            {[0, 1, 2].map(i => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, y: 0, scale: 0 }}
+                                    animate={{ opacity: [0, 1, 0], y: -30, scale: [0, 1, 0.5], x: (i - 1) * 15 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 1.5, delay: i * 0.3, repeat: Infinity }}
+                                    className="absolute top-0 left-1/2"
+                                >
+                                    <Heart className="w-3 h-3 text-pink-500 fill-pink-500" />
+                                </motion.div>
+                            ))}
+                        </>
+                    )}
+                </AnimatePresence>
 
-                    {/* BODY: Geometric Armor */}
-                    <div className={cn(
-                        "relative z-10 w-12 h-12 -mt-1 rounded-b-2xl shadow-lg flex items-center justify-center",
-                        "bg-gradient-to-b from-slate-800 to-slate-950 border-x border-b",
-                        theme === 'cyan' ? "border-cyan-500/40" : "border-pink-500/40"
-                    )}>
-                        {/* Energy Core */}
+                {/* Sparkle effect on happy */}
+                <AnimatePresence>
+                    {character.mood === 'happy' && (
                         <motion.div
-                            animate={{ scale: [0.8, 1.1, 0.8], opacity: [0.5, 1, 0.5] }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            className={cn("w-4 h-4 rounded-full", theme === 'cyan' ? "bg-cyan-500/30" : "bg-pink-500/30")}
+                            initial={{ opacity: 0, scale: 0 }}
+                            animate={{ opacity: 1, scale: 1, rotate: 360 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.5 }}
+                            className="absolute -top-2 -right-2"
                         >
-                            <div className={cn("absolute inset-1 rounded-full", theme === 'cyan' ? "bg-cyan-400" : "bg-pink-400")}
-                                style={{ boxShadow: `0 0 10px ${colors.accent}` }} />
+                            <Sparkles className={cn("w-5 h-5", isShadow ? "text-cyan-400" : "text-yellow-400")} />
                         </motion.div>
+                    )}
+                </AnimatePresence>
 
-                        {/* Armor Lines */}
-                        <div className={cn("absolute top-2 left-0 w-full h-[1px]", theme === 'cyan' ? "bg-cyan-500/30" : "bg-pink-500/30")} />
-                        <div className={cn("absolute bottom-3 left-2 right-2 h-[1px]", theme === 'cyan' ? "bg-cyan-500/20" : "bg-pink-500/20")} />
-                    </div>
-
-                    {/* Data Particles */}
-                    {[0, 1, 2].map(i => (
-                        <motion.div
-                            key={i}
-                            animate={{
-                                y: [0, -30, 0],
-                                x: [(i - 1) * 10, (i - 1) * 15, (i - 1) * 10],
-                                opacity: [0, 0.6, 0]
-                            }}
-                            transition={{ repeat: Infinity, duration: 3, delay: i * 0.8 }}
-                            className={cn("absolute top-4 w-1 h-1 rounded-full", theme === 'cyan' ? "bg-cyan-400" : "bg-pink-400")}
-                        />
-                    ))}
-
-                    {/* Base Glow */}
-                    <div className={cn(
-                        "absolute -bottom-2 w-16 h-3 rounded-full blur-md opacity-50",
-                        theme === 'cyan' ? "bg-cyan-500" : "bg-pink-500"
-                    )} />
-                </div>
-
-                {/* Ambient Aura */}
+                {/* Ambient glow */}
                 <div className={cn(
-                    "absolute inset-0 -z-10 rounded-full blur-3xl opacity-20 scale-150",
-                    theme === 'cyan' ? "bg-cyan-500" : "bg-pink-500"
+                    "absolute inset-0 -z-10 rounded-full blur-xl opacity-30 scale-150",
+                    isShadow ? "bg-cyan-400" : "bg-pink-400"
                 )} />
             </motion.div>
         </motion.div>
