@@ -457,23 +457,17 @@ function JapaneseCharacter({ character, type, onPet, onTalk, onDragStart, onDrag
                         <ellipse cx="28" cy="24" rx="12" ry="11" fill={skinColor} />
                     )}
 
-                    {/* Realistic Hair Design */}
+                    {/* Smooth, Cohesive Hair Design (Sakura-style logic) */}
                     {isShadow ? (
                         <g>
-                            {/* Layered strands for realism */}
-                            <path d="M14 18 Q28 -4 42 18" fill={hairColor} />
-                            <path d="M12 20 Q16 14 22 18" fill={hairColor} />
-                            <path d="M34 18 Q40 14 44 20" fill={hairColor} />
-
-                            {/* Wispy tips and bangs */}
-                            <path d="M16 18 C18 24 22 28 24 20" fill={hairColor} />
-                            <path d="M22 18 C24 30 28 32 32 18" fill={hairColor} />
-                            <path d="M30 18 C34 28 38 24 40 18" fill={hairColor} />
-
-                            {/* Top volume strands */}
-                            <path d="M20 12 Q28 2 36 12" fill={hairColor} />
-                            <path d="M18 14 L14 8 Q20 10 24 16" fill={hairColor} />
-                            <path d="M38 14 L42 8 Q36 10 32 16" fill={hairColor} />
+                            {/* Main smooth hair volume */}
+                            <path d="M14 18 Q28 -4 42 18 Q38 10 28 10 Q18 10 14 18" fill={hairColor} />
+                            {/* Smooth side groomed hair */}
+                            <path d="M14 18 Q12 24 16 30" fill={hairColor} />
+                            <path d="M42 18 Q44 24 40 30" fill={hairColor} />
+                            {/* Smooth side-parted bangs */}
+                            <path d="M16 18 Q22 32 30 14" fill={hairColor} />
+                            <path d="M24 12 Q30 26 38 16" fill={hairColor} />
                         </g>
                     ) : (
                         <g>
