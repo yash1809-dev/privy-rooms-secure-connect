@@ -655,7 +655,7 @@ export default function Dashboard() {
             </div>
           </MapZone>
 
-          <Footer className="border-t border-white/5 bg-transparent mt-20 opacity-60 hover:opacity-100 transition-opacity" />
+          <Footer className="border-t border-white/5 bg-transparent mt-10 opacity-60 hover:opacity-100 transition-opacity" />
         </div>
       </div>
 
