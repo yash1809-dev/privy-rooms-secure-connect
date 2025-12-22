@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Sparkles, Heart, MessageCircle, Star } from "lucide-react";
+import { Sparkles, Heart, MessageCircle, Eye, Lightbulb, HelpCircle } from "lucide-react";
 import { useStoryProgress } from "@/contexts/StoryProgressProvider";
 import { toast } from "sonner";
 
@@ -10,7 +10,7 @@ interface NeuralCoupleProps {
     onPositionChange?: (ninja: { x: number; y: number }, kunoichi: { x: number; y: number }) => void;
 }
 
-type Mood = 'idle' | 'focusing' | 'excited' | 'striking' | 'angry' | 'walking' | 'love' | 'happy' | 'talking';
+type Mood = 'idle' | 'focusing' | 'walking' | 'love' | 'happy' | 'talking' | 'hiding' | 'seeking' | 'learning';
 
 interface Character {
     id: string;
@@ -20,44 +20,40 @@ interface Character {
     currentThought: string | null;
     showInteractionMenu: boolean;
     isDragging: boolean;
+    isHidden: boolean;
 }
 
-// AI Personality Prompts
-const SHADOW_PERSONALITY = `You are Shadow, a cool but caring AI companion in CollegeOS. You're protective of users and deeply love Sakura. Keep responses under 12 words. Be supportive about productivity. Sometimes be flirty with Sakura.`;
-const SAKURA_PERSONALITY = `You are Sakura, a warm cheerful AI companion in CollegeOS. You love Shadow and care about users. Keep responses under 12 words. Be encouraging about tasks. Sometimes be playful with Shadow.`;
+// Conversation memory to avoid repetition
+const conversationMemory: string[] = [];
+const MAX_MEMORY = 20;
 
-// Fallback dialogues when API fails
-const FALLBACK_DIALOGUES = {
-    shadow: [
-        "Stay focused, you've got this.",
-        "I'm here for you.",
-        "Nice progress today!",
-        "Keep pushing forward.",
-        "Sakura and I believe in you.",
-        "Systems are looking good.",
-    ],
-    sakura: [
-        "You're doing amazing!",
-        "I'm proud of you! ✨",
-        "Shadow agrees you're the best!",
-        "Keep up the great work!",
-        "We're cheering for you!",
-        "Almost there, don't give up!",
-    ],
-    love: [
-        { shadow: "You look beautiful today.", sakura: "Shadow... *blushes*" },
-        { shadow: "I'll always protect you.", sakura: "My hero! 💕" },
-        { shadow: "Stay close to me.", sakura: "Always! ❤️" },
-        { shadow: "You're my favorite.", sakura: "And you're mine!" },
-    ],
-};
+// Learning facts
+const LEARNING_TOPICS = [
+    "The Pomodoro technique helps focus!",
+    "Taking breaks improves productivity",
+    "Green tea boosts concentration",
+    "Music without lyrics helps studying",
+    "Short walks refresh your mind",
+    "Hydration is key for brain power",
+    "Sleep helps memory consolidation",
+];
 
 const MARGIN = 40;
-const ROAM_INTERVAL = 20000;
-const IDLE_TALK_INTERVAL = 18000;
+const IDLE_TALK_INTERVAL = 15000;
+const HIDE_SEEK_INTERVAL = 45000;
+const LEARNING_INTERVAL = 60000;
 
-// AI Service - Uses LLM7.io (free, no API key)
-async function generateAIResponse(character: 'shadow' | 'sakura', context: string): Promise<string | null> {
+// AI Service with memory
+async function generateAIDialogue(
+    character: 'shadow' | 'sakura',
+    context: string,
+    relationshipLevel: number,
+    avoidPhrases: string[]
+): Promise<string | null> {
+    const shadowPrompt = `You are Shadow (影/Kage), a thoughtful Japanese man deeply in love with Sakura. You're protective, romantic, and caring. You wear modern Japanese streetwear with traditional elements. Speak naturally, sometimes flirty, always supportive. NEVER use these phrases that were already said: ${avoidPhrases.slice(-10).join('; ')}. Keep response under 15 words. Relationship level: ${relationshipLevel}/100.`;
+
+    const sakuraPrompt = `You are Sakura (桜), a warm elegant Japanese woman in a beautiful kimono. You love Shadow deeply and care about helping users succeed. You're cheerful, encouraging, and playful. NEVER use these phrases that were already said: ${avoidPhrases.slice(-10).join('; ')}. Keep response under 15 words. Relationship level: ${relationshipLevel}/100.`;
+
     try {
         const response = await fetch("https://api.llm7.io/v1/chat/completions", {
             method: "POST",
@@ -65,20 +61,23 @@ async function generateAIResponse(character: 'shadow' | 'sakura', context: strin
             body: JSON.stringify({
                 model: "gpt-4o-mini",
                 messages: [
-                    {
-                        role: "system",
-                        content: character === 'shadow' ? SHADOW_PERSONALITY : SAKURA_PERSONALITY
-                    },
+                    { role: "system", content: character === 'shadow' ? shadowPrompt : sakuraPrompt },
                     { role: "user", content: context }
                 ],
-                max_tokens: 30,
-                temperature: 0.9
+                max_tokens: 40,
+                temperature: 0.95
             })
         });
 
         if (!response.ok) return null;
         const data = await response.json();
-        return data.choices?.[0]?.message?.content || null;
+        const reply = data.choices?.[0]?.message?.content?.trim() || null;
+
+        if (reply && !avoidPhrases.includes(reply)) {
+            conversationMemory.push(reply);
+            if (conversationMemory.length > MAX_MEMORY) conversationMemory.shift();
+        }
+        return reply;
     } catch {
         return null;
     }
@@ -92,210 +91,326 @@ export function NeuralCouple({ status = 'idle', onPositionChange }: NeuralCouple
         y: Math.min(window.innerHeight - 180, Math.max(MARGIN, window.innerHeight - 200))
     });
 
-    const [ninja, setNinja] = useState<Character>({
-        id: 'ninja',
+    const [shadow, setShadow] = useState<Character>({
+        id: 'shadow',
         name: 'Shadow',
         position: getInitialPos(130),
         mood: 'idle',
         currentThought: null,
         showInteractionMenu: false,
         isDragging: false,
+        isHidden: false,
     });
 
-    const [kunoichi, setKunoichi] = useState<Character>({
-        id: 'kunoichi',
+    const [sakura, setSakura] = useState<Character>({
+        id: 'sakura',
         name: 'Sakura',
         position: getInitialPos(230),
         mood: 'idle',
         currentThought: null,
         showInteractionMenu: false,
         isDragging: false,
+        isHidden: false,
     });
 
-    const ninjaRef = useRef<HTMLDivElement>(null);
-    const kunoichiRef = useRef<HTMLDivElement>(null);
+    const shadowRef = useRef<HTMLDivElement>(null);
+    const sakuraRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // Clamp position to viewport - FIXED for all edges
-    const clampPosition = useCallback((x: number, y: number) => {
-        const maxX = window.innerWidth - 80;
-        const maxY = window.innerHeight - 120;
-        return {
-            x: Math.max(MARGIN, Math.min(maxX, x)),
-            y: Math.max(MARGIN, Math.min(maxY, y))
-        };
-    }, []);
+    const clampPosition = useCallback((x: number, y: number) => ({
+        x: Math.max(MARGIN, Math.min(window.innerWidth - 80, x)),
+        y: Math.max(MARGIN, Math.min(window.innerHeight - 120, y))
+    }), []);
 
-    // Notify parent of position changes
     useEffect(() => {
-        onPositionChange?.(ninja.position, kunoichi.position);
-    }, [ninja.position, kunoichi.position, onPositionChange]);
+        onPositionChange?.(shadow.position, sakura.position);
+    }, [shadow.position, sakura.position, onPositionChange]);
 
-    // AI-Powered Idle Dialogue System
+    // AI-Powered Dynamic Conversations
     useEffect(() => {
-        if (status === 'focusing' || ninja.isDragging || kunoichi.isDragging || isGenerating) return;
+        if (status === 'focusing' || shadow.isDragging || sakura.isDragging || isGenerating) return;
+        if (shadow.isHidden || sakura.isHidden) return;
 
-        const showIdleDialogue = async () => {
-            if (ninja.currentThought || kunoichi.currentThought) return;
+        const haveDynamicConversation = async () => {
+            if (shadow.currentThought || sakura.currentThought) return;
             setIsGenerating(true);
 
-            // Decide interaction type
-            const isLoveInteraction = Math.random() > 0.6 && relationshipLevel > 10;
+            const scenarios = [
+                { type: 'love', chance: relationshipLevel > 20 ? 0.3 : 0.1 },
+                { type: 'advice-ask', chance: 0.15 },
+                { type: 'advice-give', chance: 0.2 },
+                { type: 'casual', chance: 0.35 },
+            ];
 
-            if (isLoveInteraction) {
-                // Love dialogue between characters
-                const loveDialogue = FALLBACK_DIALOGUES.love[Math.floor(Math.random() * FALLBACK_DIALOGUES.love.length)];
+            const roll = Math.random();
+            let cumulative = 0;
+            let scenarioType = 'casual';
 
-                // Try AI generation first
-                const shadowAI = await generateAIResponse('shadow', 'Say something romantic to Sakura');
-                const shadow = shadowAI || loveDialogue.shadow;
+            for (const s of scenarios) {
+                cumulative += s.chance;
+                if (roll < cumulative) {
+                    scenarioType = s.type;
+                    break;
+                }
+            }
 
-                setNinja(prev => ({ ...prev, currentThought: shadow, mood: 'love' }));
+            if (scenarioType === 'love') {
+                // Romantic exchange
+                const shadowMsg = await generateAIDialogue('shadow',
+                    `Say something romantic or sweet to Sakura. Be genuine and loving.`,
+                    relationshipLevel, conversationMemory);
 
-                setTimeout(async () => {
-                    const sakuraAI = await generateAIResponse('sakura', `Shadow said: "${shadow}". Reply lovingly.`);
-                    const sakura = sakuraAI || loveDialogue.sakura;
-                    setKunoichi(prev => ({ ...prev, currentThought: sakura, mood: 'love' }));
-                }, 2000);
+                if (shadowMsg) {
+                    setShadow(prev => ({ ...prev, currentThought: shadowMsg, mood: 'love' }));
+
+                    setTimeout(async () => {
+                        const sakuraMsg = await generateAIDialogue('sakura',
+                            `Shadow said: "${shadowMsg}". Reply lovingly, be genuine.`,
+                            relationshipLevel, conversationMemory);
+                        if (sakuraMsg) {
+                            setSakura(prev => ({ ...prev, currentThought: sakuraMsg, mood: 'love' }));
+                        }
+                    }, 2500);
+                }
 
                 setTimeout(() => {
-                    setNinja(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
-                    setKunoichi(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
-                }, 6000);
-            } else {
-                // Individual dialogue
+                    setShadow(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
+                    setSakura(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
+                }, 7000);
+
+            } else if (scenarioType === 'advice-ask') {
+                // Ask user for input
                 const who = Math.random() > 0.5 ? 'shadow' : 'sakura';
-                const setter = who === 'shadow' ? setNinja : setKunoichi;
+                const setter = who === 'shadow' ? setShadow : setSakura;
 
-                const aiResponse = await generateAIResponse(who, 'Give a short motivational message about studying or productivity');
-                const fallback = FALLBACK_DIALOGUES[who][Math.floor(Math.random() * FALLBACK_DIALOGUES[who].length)];
+                const question = await generateAIDialogue(who,
+                    `Ask the user a friendly question about what they want to study or how their day is going.`,
+                    relationshipLevel, conversationMemory);
 
-                setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'talking' }));
-                setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
+                if (question) {
+                    setter(prev => ({ ...prev, currentThought: question, mood: 'talking' }));
+                    setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 6000);
+                }
+
+            } else if (scenarioType === 'advice-give') {
+                // Give productivity tip
+                const who = Math.random() > 0.5 ? 'shadow' : 'sakura';
+                const setter = who === 'shadow' ? setShadow : setSakura;
+
+                const tip = await generateAIDialogue(who,
+                    `Share a helpful productivity or study tip with the user. Be encouraging.`,
+                    relationshipLevel, conversationMemory);
+
+                if (tip) {
+                    setter(prev => ({ ...prev, currentThought: `💡 ${tip}`, mood: 'talking' }));
+                    setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 6000);
+                }
+
+            } else {
+                // Casual chat between them
+                const shadowMsg = await generateAIDialogue('shadow',
+                    `Say something casual to Sakura or the user. Be natural, friendly.`,
+                    relationshipLevel, conversationMemory);
+
+                if (shadowMsg) {
+                    setShadow(prev => ({ ...prev, currentThought: shadowMsg, mood: 'talking' }));
+                    setTimeout(() => setShadow(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
+                }
             }
 
             setIsGenerating(false);
         };
 
-        const interval = setInterval(showIdleDialogue, IDLE_TALK_INTERVAL);
-        // Initial dialogue after 3 seconds
-        const timeout = setTimeout(showIdleDialogue, 3000);
+        const interval = setInterval(haveDynamicConversation, IDLE_TALK_INTERVAL);
+        const timeout = setTimeout(haveDynamicConversation, 2000);
 
         return () => {
             clearInterval(interval);
             clearTimeout(timeout);
         };
-    }, [status, ninja.isDragging, kunoichi.isDragging, ninja.currentThought, kunoichi.currentThought, isGenerating, relationshipLevel]);
+    }, [status, shadow.isDragging, sakura.isDragging, shadow.currentThought, sakura.currentThought,
+        isGenerating, relationshipLevel, shadow.isHidden, sakura.isHidden]);
+
+    // Hide and Seek Game
+    useEffect(() => {
+        const playHideSeek = async () => {
+            if (shadow.isDragging || sakura.isDragging || isGenerating) return;
+            if (shadow.currentThought || sakura.currentThought) return;
+
+            const hider = Math.random() > 0.5 ? 'shadow' : 'sakura';
+            const seeker = hider === 'shadow' ? 'sakura' : 'shadow';
+            const hiderSetter = hider === 'shadow' ? setShadow : setSakura;
+            const seekerSetter = seeker === 'shadow' ? setShadow : setSakura;
+
+            // Hider disappears
+            hiderSetter(prev => ({ ...prev, isHidden: true, mood: 'hiding' }));
+
+            // Seeker looks for them
+            setTimeout(async () => {
+                const seekMsg = await generateAIDialogue(seeker,
+                    `${hider === 'shadow' ? 'Shadow' : 'Sakura'} is hiding from you. React playfully!`,
+                    relationshipLevel, conversationMemory);
+                seekerSetter(prev => ({ ...prev, currentThought: seekMsg || "Where did you go? 👀", mood: 'seeking' }));
+            }, 1500);
+
+            // Hider reappears
+            setTimeout(async () => {
+                hiderSetter(prev => ({ ...prev, isHidden: false }));
+                const foundMsg = await generateAIDialogue(hider,
+                    `You were hiding and got found! React playfully.`,
+                    relationshipLevel, conversationMemory);
+                hiderSetter(prev => ({ ...prev, currentThought: foundMsg || "Found me! ✨", mood: 'happy' }));
+                seekerSetter(prev => ({ ...prev, currentThought: null, mood: 'happy' }));
+
+                increaseRelationship(1);
+            }, 5000);
+
+            // Reset
+            setTimeout(() => {
+                setShadow(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
+                setSakura(prev => ({ ...prev, currentThought: null, mood: 'idle' }));
+            }, 8000);
+        };
+
+        const interval = setInterval(playHideSeek, HIDE_SEEK_INTERVAL);
+        return () => clearInterval(interval);
+    }, [shadow.isDragging, sakura.isDragging, isGenerating, relationshipLevel,
+    shadow.currentThought, sakura.currentThought]);
+
+    // Learning Feature
+    useEffect(() => {
+        const learnSomething = async () => {
+            if (shadow.currentThought || sakura.currentThought) return;
+            if (shadow.isDragging || sakura.isDragging) return;
+
+            const learner = Math.random() > 0.5 ? 'shadow' : 'sakura';
+            const setter = learner === 'shadow' ? setShadow : setSakura;
+
+            const discovery = await generateAIDialogue(learner,
+                `You just learned something interesting about productivity or studying. Share it excitedly!`,
+                relationshipLevel, conversationMemory);
+
+            if (discovery) {
+                setter(prev => ({ ...prev, currentThought: `🎓 ${discovery}`, mood: 'learning' }));
+                toast.info(`${learner === 'shadow' ? 'Shadow' : 'Sakura'} learned something!`, { duration: 3000 });
+                setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 7000);
+            }
+        };
+
+        const interval = setInterval(learnSomething, LEARNING_INTERVAL);
+        return () => clearInterval(interval);
+    }, [shadow.currentThought, sakura.currentThought, shadow.isDragging, sakura.isDragging, relationshipLevel]);
 
     // Free Roaming
     useEffect(() => {
         const roam = () => {
-            if (ninja.isDragging || kunoichi.isDragging || status === 'focusing') return;
-            if (ninja.currentThought || kunoichi.currentThought) return;
+            if (shadow.isDragging || sakura.isDragging || status === 'focusing') return;
+            if (shadow.currentThought || sakura.currentThought) return;
+            if (shadow.isHidden || sakura.isHidden) return;
 
-            const shouldNinjaRoam = Math.random() > 0.6;
-            const shouldSakuraRoam = Math.random() > 0.6;
-
-            if (shouldNinjaRoam) {
+            if (Math.random() > 0.5) {
                 const newPos = clampPosition(
                     Math.random() * (window.innerWidth - 150) + MARGIN,
                     Math.random() * (window.innerHeight - 200) + MARGIN
                 );
-                setNinja(prev => ({ ...prev, mood: 'walking', position: newPos }));
-                setTimeout(() => setNinja(prev => ({ ...prev, mood: 'idle' })), 1000);
+                setShadow(prev => ({ ...prev, mood: 'walking', position: newPos }));
+                setTimeout(() => setShadow(prev => ({ ...prev, mood: 'idle' })), 1000);
             }
 
-            if (shouldSakuraRoam) {
+            if (Math.random() > 0.5) {
                 const newPos = clampPosition(
                     Math.random() * (window.innerWidth - 150) + MARGIN,
                     Math.random() * (window.innerHeight - 200) + MARGIN
                 );
-                setKunoichi(prev => ({ ...prev, mood: 'walking', position: newPos }));
-                setTimeout(() => setKunoichi(prev => ({ ...prev, mood: 'idle' })), 1000);
+                setSakura(prev => ({ ...prev, mood: 'walking', position: newPos }));
+                setTimeout(() => setSakura(prev => ({ ...prev, mood: 'idle' })), 1000);
             }
         };
 
-        const interval = setInterval(roam, ROAM_INTERVAL);
+        const interval = setInterval(roam, 20000);
         return () => clearInterval(interval);
-    }, [ninja.isDragging, kunoichi.isDragging, ninja.currentThought, kunoichi.currentThought, status, clampPosition]);
+    }, [shadow.isDragging, sakura.isDragging, shadow.currentThought, sakura.currentThought,
+        status, clampPosition, shadow.isHidden, sakura.isHidden]);
 
     // Handlers
-    const handleCharacterClick = (charId: 'ninja' | 'kunoichi') => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
+    const handleCharacterClick = (charId: 'shadow' | 'sakura') => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
         setter(prev => ({ ...prev, showInteractionMenu: !prev.showInteractionMenu }));
     };
 
-    const handlePet = async (charId: 'ninja' | 'kunoichi') => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const aiResponse = await generateAIResponse(charId === 'ninja' ? 'shadow' : 'sakura', 'User pet you affectionately. React sweetly.');
-        const fallback = charId === 'ninja' ? "Thanks... *happy*" : "Yay! Love you! 💕";
+    const handlePet = async (charId: 'shadow' | 'sakura') => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
+        const response = await generateAIDialogue(charId,
+            `The user pet you affectionately. React with warmth and happiness!`,
+            relationshipLevel, conversationMemory);
 
-        setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'happy', showInteractionMenu: false }));
-        increaseRelationship(2);
-        toast.success("💕 Bond +2!", { duration: 2000 });
-        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 3000);
+        setter(prev => ({ ...prev, currentThought: response || "ありがとう! 💕", mood: 'happy', showInteractionMenu: false }));
+        increaseRelationship(3);
+        toast.success("💕 Bond +3!", { duration: 2000 });
+        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 4000);
     };
 
-    const handleTalk = async (charId: 'ninja' | 'kunoichi') => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const aiResponse = await generateAIResponse(charId === 'ninja' ? 'shadow' : 'sakura', 'User wants to talk. Say something encouraging.');
-        const fallback = charId === 'ninja' ? "Ready to help." : "What's up? 😊";
+    const handleTalk = async (charId: 'shadow' | 'sakura') => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
+        const response = await generateAIDialogue(charId,
+            `The user wants to chat with you. Say something encouraging or share a thought.`,
+            relationshipLevel, conversationMemory);
 
-        setter(prev => ({ ...prev, currentThought: aiResponse || fallback, mood: 'talking', showInteractionMenu: false }));
+        setter(prev => ({ ...prev, currentThought: response || "What's on your mind?", mood: 'talking', showInteractionMenu: false }));
         increaseRelationship(1);
         incrementQuestProgress('conversation');
-        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 3000);
+        setTimeout(() => setter(prev => ({ ...prev, currentThought: null, mood: 'idle' })), 5000);
     };
 
-    const handleDragStart = (charId: 'ninja' | 'kunoichi') => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
+    const handleDragStart = (charId: 'shadow' | 'sakura') => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
         setter(prev => ({ ...prev, isDragging: true, showInteractionMenu: false, currentThought: null }));
     };
 
-    const handleDrag = (charId: 'ninja' | 'kunoichi', info: any) => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
-        const clamped = clampPosition(info.point.x - 40, info.point.y - 50);
+    const handleDrag = (charId: 'shadow' | 'sakura', info: any) => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
+        const clamped = clampPosition(info.point.x - 35, info.point.y - 45);
         setter(prev => ({ ...prev, position: clamped }));
     };
 
-    const handleDragEnd = (charId: 'ninja' | 'kunoichi') => {
-        const setter = charId === 'ninja' ? setNinja : setKunoichi;
+    const handleDragEnd = (charId: 'shadow' | 'sakura') => {
+        const setter = charId === 'shadow' ? setShadow : setSakura;
         setter(prev => ({ ...prev, isDragging: false, mood: 'idle' }));
     };
 
     return (
         <>
-            <CuteCharacter
-                character={ninja}
-                charRef={ninjaRef}
-                theme="cyan"
-                onClick={() => handleCharacterClick('ninja')}
-                onPet={() => handlePet('ninja')}
-                onTalk={() => handleTalk('ninja')}
-                onDragStart={() => handleDragStart('ninja')}
-                onDrag={(info: any) => handleDrag('ninja', info)}
-                onDragEnd={() => handleDragEnd('ninja')}
+            <JapaneseCharacter
+                character={shadow}
+                charRef={shadowRef}
+                type="shadow"
+                onClick={() => handleCharacterClick('shadow')}
+                onPet={() => handlePet('shadow')}
+                onTalk={() => handleTalk('shadow')}
+                onDragStart={() => handleDragStart('shadow')}
+                onDrag={(info: any) => handleDrag('shadow', info)}
+                onDragEnd={() => handleDragEnd('shadow')}
             />
-            <CuteCharacter
-                character={kunoichi}
-                charRef={kunoichiRef}
-                theme="pink"
-                onClick={() => handleCharacterClick('kunoichi')}
-                onPet={() => handlePet('kunoichi')}
-                onTalk={() => handleTalk('kunoichi')}
-                onDragStart={() => handleDragStart('kunoichi')}
-                onDrag={(info: any) => handleDrag('kunoichi', info)}
-                onDragEnd={() => handleDragEnd('kunoichi')}
+            <JapaneseCharacter
+                character={sakura}
+                charRef={sakuraRef}
+                type="sakura"
+                onClick={() => handleCharacterClick('sakura')}
+                onPet={() => handlePet('sakura')}
+                onTalk={() => handleTalk('sakura')}
+                onDragStart={() => handleDragStart('sakura')}
+                onDrag={(info: any) => handleDrag('sakura', info)}
+                onDragEnd={() => handleDragEnd('sakura')}
             />
         </>
     );
 }
 
-// Cute Anime-Style Character Component
-function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDragStart, onDrag, onDragEnd }: {
+// Japanese-Styled Character Component
+function JapaneseCharacter({ character, charRef, type, onClick, onPet, onTalk, onDragStart, onDrag, onDragEnd }: {
     character: Character;
     charRef: React.RefObject<HTMLDivElement>;
-    theme: 'cyan' | 'pink';
+    type: 'shadow' | 'sakura';
     onClick: () => void;
     onPet: () => void;
     onTalk: () => void;
@@ -303,19 +418,35 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
     onDrag: (info: any) => void;
     onDragEnd: () => void;
 }) {
-    const isShadow = theme === 'cyan';
-    const primaryColor = isShadow ? 'cyan' : 'pink';
-    const eyeColor = isShadow ? '#67e8f9' : '#f9a8d4';
-    const hairColor = isShadow ? '#1e293b' : '#fda4af';
-    const skinColor = '#fde7d9';
+    const isShadow = type === 'shadow';
+    const skinColor = '#fce4d6';
+    const hairColor = isShadow ? '#1a1a2e' : '#2d1b1b';
+    const outfitPrimary = isShadow ? '#1e293b' : '#fda4af';
+    const outfitSecondary = isShadow ? '#334155' : '#fecdd3';
+    const accent = isShadow ? '#67e8f9' : '#f9a8d4';
 
     const getBubbleStyle = (): React.CSSProperties => {
         const x = character.position.x;
         const w = window.innerWidth;
-        if (x > w - 200) return { right: '100%', marginRight: '8px', top: '10px' };
-        if (x < 200) return { left: '100%', marginLeft: '8px', top: '10px' };
-        return { left: '50%', transform: 'translateX(-50%)', bottom: '100%', marginBottom: '8px' };
+        if (x > w - 220) return { right: '100%', marginRight: '10px', top: '0' };
+        if (x < 220) return { left: '100%', marginLeft: '10px', top: '0' };
+        return { left: '50%', transform: 'translateX(-50%)', bottom: '100%', marginBottom: '10px' };
     };
+
+    if (character.isHidden) {
+        return (
+            <motion.div
+                className="fixed z-[9998]"
+                style={{ left: character.position.x, top: character.position.y }}
+                animate={{ scale: [1, 0.8, 1], opacity: 0.3 }}
+                transition={{ repeat: Infinity, duration: 1 }}
+            >
+                <div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center">
+                    <Eye className="w-5 h-5 text-slate-400" />
+                </div>
+            </motion.div>
+        );
+    }
 
     return (
         <motion.div
@@ -335,11 +466,15 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
             <motion.div
                 ref={charRef}
                 animate={{
-                    y: character.mood === 'walking' ? [0, -3, 0] : [0, -2, 0],
+                    y: character.mood === 'walking' ? [0, -4, 0] : [0, -2, 0],
                     scale: character.isDragging ? 1.1 : 1,
+                    rotate: character.mood === 'happy' ? [0, 3, -3, 0] : 0
                 }}
-                transition={{ y: { repeat: Infinity, duration: character.mood === 'walking' ? 0.3 : 2 } }}
-                className="relative w-16 h-20 group"
+                transition={{
+                    y: { repeat: Infinity, duration: character.mood === 'walking' ? 0.3 : 2.5 },
+                    rotate: { repeat: Infinity, duration: 0.5 }
+                }}
+                className="relative w-14 h-20 group"
                 onClick={onClick}
                 whileHover={{ scale: 1.08 }}
             >
@@ -350,17 +485,15 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
                             initial={{ opacity: 0, scale: 0.8, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-2 z-50"
+                            className="absolute -top-11 left-1/2 -translate-x-1/2 flex gap-2 z-50"
                         >
                             <button onClick={(e) => { e.stopPropagation(); onPet(); }}
-                                className={cn("p-2 rounded-full shadow-lg transition-transform hover:scale-110",
-                                    isShadow ? "bg-cyan-500/20 border border-cyan-400" : "bg-pink-500/20 border border-pink-400")}>
-                                <Heart className={cn("w-4 h-4", isShadow ? "text-cyan-400" : "text-pink-400")} fill="currentColor" />
+                                className="p-1.5 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform border border-pink-200">
+                                <Heart className="w-3.5 h-3.5 text-pink-500" fill="currentColor" />
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); onTalk(); }}
-                                className={cn("p-2 rounded-full shadow-lg transition-transform hover:scale-110",
-                                    isShadow ? "bg-cyan-500/20 border border-cyan-400" : "bg-pink-500/20 border border-pink-400")}>
-                                <MessageCircle className={cn("w-4 h-4", isShadow ? "text-cyan-400" : "text-pink-400")} />
+                                className="p-1.5 rounded-full bg-white/90 shadow-lg hover:scale-110 transition-transform border border-cyan-200">
+                                <MessageCircle className="w-3.5 h-3.5 text-cyan-500" />
                             </button>
                         </motion.div>
                     )}
@@ -373,12 +506,14 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute z-50 pointer-events-none max-w-[180px]"
+                            className="absolute z-50 pointer-events-none max-w-[200px]"
                             style={getBubbleStyle()}
                         >
                             <div className={cn(
-                                "px-3 py-2 rounded-2xl shadow-xl border text-[11px] font-medium leading-tight",
-                                isShadow ? "bg-slate-900/95 border-cyan-400/50 text-cyan-50" : "bg-white/95 border-pink-300 text-pink-900"
+                                "px-3 py-2 rounded-xl shadow-lg border text-[10px] font-medium leading-snug",
+                                isShadow
+                                    ? "bg-slate-900/95 border-cyan-500/40 text-cyan-50"
+                                    : "bg-white/95 border-pink-300 text-pink-900"
                             )}>
                                 {character.currentThought}
                             </div>
@@ -386,89 +521,97 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
                     )}
                 </AnimatePresence>
 
-                {/* CUTE CHARACTER SVG */}
-                <svg viewBox="0 0 64 80" className="w-full h-full drop-shadow-lg">
+                {/* JAPANESE CHARACTER SVG */}
+                <svg viewBox="0 0 56 80" className="w-full h-full drop-shadow-md">
                     {/* Hair Back */}
-                    <ellipse cx="32" cy="22" rx="18" ry="16" fill={hairColor} />
+                    <ellipse cx="28" cy="18" rx="14" ry="12" fill={hairColor} />
 
                     {/* Face */}
-                    <ellipse cx="32" cy="28" rx="14" ry="13" fill={skinColor} />
+                    <ellipse cx="28" cy="22" rx="11" ry="10" fill={skinColor} />
 
-                    {/* Hair Front */}
+                    {/* Hair Front/Bangs */}
                     {isShadow ? (
-                        <>
-                            <path d="M18 22 Q32 8 46 22 Q44 16 32 14 Q20 16 18 22" fill={hairColor} />
-                            <path d="M20 20 L24 26 L22 20" fill={hairColor} />
-                            <path d="M44 20 L40 26 L42 20" fill={hairColor} />
-                        </>
+                        <path d="M17 18 Q28 8 39 18 Q37 14 28 12 Q19 14 17 18" fill={hairColor} />
                     ) : (
                         <>
-                            <path d="M16 24 Q32 6 48 24 Q46 14 32 12 Q18 14 16 24" fill={hairColor} />
-                            <ellipse cx="22" cy="18" rx="3" ry="4" fill={hairColor} />
-                            <ellipse cx="42" cy="18" rx="3" ry="4" fill={hairColor} />
-                            {/* Flower accessory */}
-                            <circle cx="46" cy="16" r="4" fill="#fbbf24" />
-                            <circle cx="46" cy="16" r="2" fill="#fcd34d" />
+                            <path d="M15 20 Q28 5 41 20 Q39 12 28 10 Q17 12 15 20" fill={hairColor} />
+                            {/* Side hair */}
+                            <ellipse cx="16" cy="28" rx="2" ry="6" fill={hairColor} />
+                            <ellipse cx="40" cy="28" rx="2" ry="6" fill={hairColor} />
+                            {/* Flower ornament */}
+                            <g transform="translate(38, 10)">
+                                <circle r="4" fill="#fbbf24" />
+                                <circle r="2" fill="#fde68a" />
+                            </g>
                         </>
                     )}
 
                     {/* Eyes */}
                     <g>
-                        {/* Left Eye */}
-                        <ellipse cx="26" cy="28" rx="4" ry="4.5" fill="white" />
+                        <ellipse cx="23" cy="22" rx="2.5" ry="3" fill="white" />
                         <motion.ellipse
-                            cx="26" cy="28" rx="3" ry="3.5"
-                            fill={eyeColor}
+                            cx="23" cy="22" rx="2" ry="2.5"
+                            fill={isShadow ? '#374151' : '#78350f'}
                             animate={{ scaleY: [1, 1, 0.1, 1] }}
                             transition={{ repeat: Infinity, duration: 4, repeatDelay: 2 }}
                         />
-                        <circle cx="27" cy="27" r="1.5" fill="white" opacity="0.8" />
-                        <circle cx="26" cy="29" r="2" fill="#1a1a2e" />
+                        <circle cx="23.5" cy="21.5" r="0.8" fill="white" opacity="0.7" />
 
-                        {/* Right Eye */}
-                        <ellipse cx="38" cy="28" rx="4" ry="4.5" fill="white" />
+                        <ellipse cx="33" cy="22" rx="2.5" ry="3" fill="white" />
                         <motion.ellipse
-                            cx="38" cy="28" rx="3" ry="3.5"
-                            fill={eyeColor}
+                            cx="33" cy="22" rx="2" ry="2.5"
+                            fill={isShadow ? '#374151' : '#78350f'}
                             animate={{ scaleY: [1, 1, 0.1, 1] }}
                             transition={{ repeat: Infinity, duration: 4, repeatDelay: 2, delay: 0.1 }}
                         />
-                        <circle cx="39" cy="27" r="1.5" fill="white" opacity="0.8" />
-                        <circle cx="38" cy="29" r="2" fill="#1a1a2e" />
+                        <circle cx="33.5" cy="21.5" r="0.8" fill="white" opacity="0.7" />
                     </g>
 
                     {/* Blush */}
-                    <ellipse cx="21" cy="32" rx="3" ry="1.5" fill="#fca5a5" opacity="0.5" />
-                    <ellipse cx="43" cy="32" rx="3" ry="1.5" fill="#fca5a5" opacity="0.5" />
+                    <ellipse cx="19" cy="26" rx="2" ry="1" fill="#fca5a5" opacity="0.4" />
+                    <ellipse cx="37" cy="26" rx="2" ry="1" fill="#fca5a5" opacity="0.4" />
 
                     {/* Mouth */}
                     {character.mood === 'happy' || character.mood === 'love' ? (
-                        <path d="M28 35 Q32 39 36 35" stroke="#e11d48" strokeWidth="1.5" fill="none" />
+                        <path d="M25 28 Q28 31 31 28" stroke="#be123c" strokeWidth="1" fill="none" />
                     ) : (
-                        <ellipse cx="32" cy="35" rx="2" ry="1" fill="#e11d48" opacity="0.6" />
+                        <ellipse cx="28" cy="28" rx="1.5" ry="0.8" fill="#be123c" opacity="0.5" />
                     )}
 
-                    {/* Body */}
-                    <path
-                        d={isShadow
-                            ? "M22 40 Q22 42 20 50 L20 70 Q32 75 44 70 L44 50 Q42 42 42 40 Q32 44 22 40"
-                            : "M20 40 Q18 45 18 55 L18 70 Q32 78 46 70 L46 55 Q46 45 44 40 Q32 46 20 40"
-                        }
-                        fill={isShadow ? '#1e293b' : '#fda4af'}
-                    />
-
-                    {/* Outfit details */}
+                    {/* Body - Japanese Outfit */}
                     {isShadow ? (
-                        <path d="M28 45 L32 55 L36 45" stroke="#67e8f9" strokeWidth="1" fill="none" opacity="0.6" />
+                        // Shadow: Modern Japanese Streetwear (Dark Haori-style jacket)
+                        <g>
+                            {/* Neck */}
+                            <rect x="25" y="32" width="6" height="4" fill={skinColor} />
+                            {/* Jacket */}
+                            <path d="M18 36 L18 65 Q28 70 38 65 L38 36 Q28 40 18 36" fill={outfitPrimary} />
+                            {/* Collar/Lapel */}
+                            <path d="M22 36 L28 50 L34 36" stroke={outfitSecondary} strokeWidth="2" fill="none" />
+                            {/* Accent stripe */}
+                            <line x1="28" y1="50" x2="28" y2="65" stroke={accent} strokeWidth="1" opacity="0.6" />
+                        </g>
                     ) : (
-                        <>
-                            <path d="M26 50 Q32 52 38 50" stroke="white" strokeWidth="1" fill="none" opacity="0.4" />
-                            <circle cx="32" cy="48" r="2" fill="white" opacity="0.3" />
-                        </>
+                        // Sakura: Elegant Kimono
+                        <g>
+                            {/* Neck */}
+                            <rect x="25" y="32" width="6" height="4" fill={skinColor} />
+                            {/* Kimono body */}
+                            <path d="M16 36 L14 68 Q28 75 42 68 L40 36 Q28 42 16 36" fill={outfitPrimary} />
+                            {/* Collar V */}
+                            <path d="M22 36 L28 48 L34 36" stroke="white" strokeWidth="2" fill="none" />
+                            {/* Obi (sash) */}
+                            <rect x="18" y="50" width="20" height="6" rx="1" fill={accent} />
+                            {/* Obi knot */}
+                            <circle cx="28" cy="53" r="2.5" fill={outfitSecondary} />
+                            {/* Pattern */}
+                            <circle cx="22" cy="60" r="1.5" fill="white" opacity="0.3" />
+                            <circle cx="34" cy="62" r="1.5" fill="white" opacity="0.3" />
+                        </g>
                     )}
                 </svg>
 
-                {/* Love particles for love mood */}
+                {/* Effects */}
                 <AnimatePresence>
                     {character.mood === 'love' && (
                         <>
@@ -476,36 +619,39 @@ function CuteCharacter({ character, charRef, theme, onClick, onPet, onTalk, onDr
                                 <motion.div
                                     key={i}
                                     initial={{ opacity: 0, y: 0, scale: 0 }}
-                                    animate={{ opacity: [0, 1, 0], y: -30, scale: [0, 1, 0.5], x: (i - 1) * 15 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 1.5, delay: i * 0.3, repeat: Infinity }}
+                                    animate={{ opacity: [0, 1, 0], y: -25, scale: [0, 1, 0.5], x: (i - 1) * 12 }}
+                                    transition={{ duration: 1.2, delay: i * 0.25, repeat: Infinity }}
                                     className="absolute top-0 left-1/2"
                                 >
-                                    <Heart className="w-3 h-3 text-pink-500 fill-pink-500" />
+                                    <Heart className="w-2.5 h-2.5 text-pink-500 fill-pink-500" />
                                 </motion.div>
                             ))}
                         </>
                     )}
-                </AnimatePresence>
-
-                {/* Sparkle effect on happy */}
-                <AnimatePresence>
-                    {character.mood === 'happy' && (
+                    {character.mood === 'learning' && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: 1, scale: 1, rotate: 360 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="absolute -top-2 -right-2"
+                            animate={{ opacity: 1, scale: 1, rotate: [0, 10, -10, 0] }}
+                            transition={{ rotate: { repeat: Infinity, duration: 0.5 } }}
+                            className="absolute -top-1 -right-1"
                         >
-                            <Sparkles className={cn("w-5 h-5", isShadow ? "text-cyan-400" : "text-yellow-400")} />
+                            <Lightbulb className="w-4 h-4 text-yellow-400 fill-yellow-200" />
+                        </motion.div>
+                    )}
+                    {character.mood === 'seeking' && (
+                        <motion.div
+                            animate={{ x: [-3, 3, -3] }}
+                            transition={{ repeat: Infinity, duration: 0.3 }}
+                            className="absolute -top-1 -right-1"
+                        >
+                            <HelpCircle className="w-4 h-4 text-cyan-400" />
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* Ambient glow */}
+                {/* Glow */}
                 <div className={cn(
-                    "absolute inset-0 -z-10 rounded-full blur-xl opacity-30 scale-150",
+                    "absolute inset-0 -z-10 rounded-full blur-xl opacity-25 scale-150",
                     isShadow ? "bg-cyan-400" : "bg-pink-400"
                 )} />
             </motion.div>
