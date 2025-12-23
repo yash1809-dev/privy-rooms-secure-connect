@@ -487,17 +487,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="p-6 glass-card border-white/5 bg-slate-900/60 rounded-[2.5rem] relative group cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:scale-110 transition-transform">
-                      <Sparkles className="w-6 h-6 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h5 className="text-sm font-black text-white uppercase tracking-tight">Academic Pulse</h5>
-                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">System optimizing for peak performance</p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </MapZone>
@@ -523,50 +512,6 @@ export default function Dashboard() {
                     <VoiceNotesToText onPrecisionChange={setVocalPrecision} />
                   </div>
                 </Card>
-              </div>
-
-              <div className="hidden xl:block xl:col-span-4 space-y-8">
-                <div className="p-8 bg-black/40 rounded-[2.5rem] border border-white/5 space-y-6 relative overflow-hidden group lg:mr-8">
-                  <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent" />
-                  <div className="relative z-10 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Processing Node</p>
-                      <Activity className="w-4 h-4 text-pink-400 opacity-50" />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Neural Status</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
-                          <span className="text-[10px] text-white font-mono">ENCODING ACTIVE</span>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Vocal Precision</p>
-                        <div className="flex justify-between items-end">
-                          <div className="flex gap-1 items-end h-6">
-                            {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8].map((h, i) => (
-                              <div key={i} className="w-1 bg-pink-500/50 rounded-full animate-bounce" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.1}s` }} />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-pink-400 font-mono">{vocalPrecision > 0 ? `${vocalPrecision}.2%` : "---%"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-8 glass-card border-white/10 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-[2.5rem] relative group cursor-pointer overflow-hidden lg:mr-8">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <Mic className="w-16 h-16 text-indigo-400" />
-                  </div>
-                  <div className="relative z-10 space-y-2">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Voice Capture</p>
-                    <h5 className="text-xl font-black text-white italic">Neural Relay</h5>
-                    <p className="text-[9px] text-slate-500 leading-relaxed uppercase tracking-tight">Automatic transcription bridge connecting spoken intelligence to the core data-lake.</p>
-                  </div>
-                </div>
               </div>
             </div>
           </MapZone>
@@ -627,16 +572,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="relative group overflow-hidden rounded-[3rem] border border-white/5 p-8 bg-slate-900/60 lg:mr-8">
-                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Task Status</p>
-                      <h5 className="text-lg font-black text-white">Grid Mastery</h5>
-                    </div>
-                    <CheckSquare className="w-6 h-6 text-teal-400" />
-                  </div>
-                </div>
               </div>
             </div>
           </MapZone>
@@ -816,13 +751,7 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
     return () => observer.disconnect();
   }, [id, setUnlocked, setActive]);
 
-  const colorClasses: any = {
-    teal: "from-teal-500/20 to-teal-800/20 shadow-teal-500/10 border-teal-500/20",
-    indigo: "from-indigo-500/20 to-indigo-800/20 shadow-indigo-500/10 border-indigo-500/20",
-    pink: "from-pink-500/20 to-pink-800/20 shadow-pink-500/10 border-pink-500/20",
-    amber: "from-amber-500/20 to-amber-800/20 shadow-amber-500/10 border-amber-500/20"
-  };
-
+  // Uniform glassmorphism - no color-specific shades
   const textColors: any = { teal: "text-teal-400", indigo: "text-indigo-400", pink: "text-pink-400", amber: "text-amber-400" };
 
   return (
@@ -833,10 +762,11 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
         isVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-40 scale-95"
       )}
     >
-      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-700", colorClasses[color])} />
+      {/* Uniform glassmorphism effect on hover - no colored gradients */}
+      <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-xl opacity-0 group-hover:opacity-100 transition-all duration-700 border border-white/10" />
 
       <div className="mb-10 sm:mb-20 flex items-center gap-4 sm:gap-10 relative z-10">
-        <div className={cn("w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[2rem] flex items-center justify-center bg-slate-900 border shadow-2xl transition-transform group-hover:rotate-12 duration-500", colorClasses[color])}>
+        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[2rem] flex items-center justify-center bg-slate-900/50 backdrop-blur-md border border-white/10 shadow-2xl transition-all group-hover:scale-110 group-hover:border-white/20 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] duration-500">
           <Icon className="text-white w-7 h-7 sm:w-10 sm:h-10 drop-shadow-lg" />
         </div>
         <div>
