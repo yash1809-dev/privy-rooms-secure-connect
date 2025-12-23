@@ -28,9 +28,6 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const [duration, setDuration] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
-    const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const durationRef = useRef<number>(0);
-
     // Load Spotify Web Playback SDK script
     useEffect(() => {
         if (!enabled) return;
@@ -53,7 +50,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
                 setCurrentTrack(state.track_window.current_track);
                 setPosition(state.position);
                 setDuration(state.duration);
-                durationRef.current = state.duration;
+                globalDuration = state.duration;
                 globalPosition = state.position;
                 globalDuration = state.duration;
             });
@@ -65,7 +62,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
                     setCurrentTrack(state.track_window.current_track);
                     setPosition(state.position);
                     setDuration(state.duration);
-                    durationRef.current = state.duration;
+                    globalDuration = state.duration;
                 }
             });
 
@@ -198,7 +195,8 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             setCurrentTrack(state.track_window.current_track);
             setPosition(state.position);
             setDuration(state.duration);
-            durationRef.current = state.duration; // Keep ref in sync
+            globalPosition = state.position;
+            globalDuration = state.duration;
 
             // Update position while playing
             if (!state.paused) {
@@ -217,24 +215,21 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         globalIsInitializing = false; // Reset flag after successful initialization
     };
 
-    // Start updating position
+    // Start updating position (uses global interval)
     const startPositionUpdate = () => {
-        if (positionIntervalRef.current) return;
+        if (globalPositionInterval) return; // Already running
 
-        positionIntervalRef.current = setInterval(() => {
-            setPosition((prev) => {
-                const newPos = prev + 1000;
-                // Use ref to get current duration (avoids closure issue)
-                return newPos < durationRef.current ? newPos : durationRef.current;
-            });
+        globalPositionInterval = setInterval(() => {
+            globalPosition = Math.min(globalPosition + 1000, globalDuration);
+            setPosition(globalPosition); // Sync to React state
         }, 1000);
     };
 
     // Stop updating position
     const stopPositionUpdate = () => {
-        if (positionIntervalRef.current) {
-            clearInterval(positionIntervalRef.current);
-            positionIntervalRef.current = null;
+        if (globalPositionInterval) {
+            clearInterval(globalPositionInterval);
+            globalPositionInterval = null;
         }
     };
 
