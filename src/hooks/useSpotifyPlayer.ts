@@ -20,6 +20,9 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const durationRef = useRef<number>(0);
     const initializingRef = useRef<boolean>(false);
+    // Persist deviceId and isReady across remounts
+    const deviceIdRef = useRef<string | null>(null);
+    const isReadyRef = useRef<boolean>(false);
 
     // Load Spotify Web Playback SDK script
     useEffect(() => {
@@ -29,7 +32,30 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         if (playerRef.current) {
             console.log('Reusing existing Spotify player');
             setPlayer(playerRef.current);
-            // Player should still be connected, just update state
+
+            // Restore persisted deviceId and isReady from refs
+            if (deviceIdRef.current) {
+                console.log('Restoring deviceId:', deviceIdRef.current);
+                setDeviceId(deviceIdRef.current);
+                setIsReady(isReadyRef.current);
+            }
+
+            // Restore state from the existing player
+            playerRef.current.getCurrentState().then((state) => {
+                if (state) {
+                    setIsPaused(state.paused);
+                    setCurrentTrack(state.track_window.current_track);
+                    setPosition(state.position);
+                    setDuration(state.duration);
+                    durationRef.current = state.duration;
+
+                    // Resume position updates if playing
+                    if (!state.paused) {
+                        startPositionUpdate();
+                    }
+                }
+            });
+
             return;
         }
 
@@ -116,12 +142,16 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             setDeviceId(device_id);
             setIsReady(true);
             setError(null);
+            // Persist to refs for reuse after remount
+            deviceIdRef.current = device_id;
+            isReadyRef.current = true;
         });
 
         // Not Ready
         spotifyPlayer.addListener('not_ready', ({ device_id }) => {
             console.log('Device ID has gone offline', device_id);
             setIsReady(false);
+            isReadyRef.current = false;
         });
 
         // Errors
@@ -275,6 +305,9 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         setCurrentTrack(null);
         setError(null);
         initializingRef.current = false;
+        // Clear persisted refs
+        deviceIdRef.current = null;
+        isReadyRef.current = false;
     }, []);
 
     return {
