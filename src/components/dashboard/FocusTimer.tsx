@@ -285,6 +285,7 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                                 isLoading={spotifyAuth.isLoading}
                                 onConnect={spotifyAuth.connect}
                                 onDisconnect={spotifyAuth.disconnect}
+                                userInfo={spotifyAuth.userInfo}
                             />
                             <p className="text-xs text-center text-slate-500">
                                 Connect Spotify to play music while you focus
@@ -297,6 +298,7 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
                                 isLoading={spotifyAuth.isLoading}
                                 onConnect={spotifyAuth.connect}
                                 onDisconnect={spotifyAuth.disconnect}
+                                userInfo={spotifyAuth.userInfo}
                             />
 
                             {spotifyPlayer.error && spotifyPlayer.error.includes("Premium") ? (

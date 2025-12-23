@@ -54,14 +54,26 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         // Check subscription status
         try {
             const user = await getCurrentUser();
+
+            // Log the full response for debugging
+            console.log('Spotify user info:', {
+                display_name: user.display_name,
+                email: user.email,
+                product: user.product,
+                id: user.id
+            });
+
             if (user.product !== 'premium') {
-                console.log('Free Spotify account detected');
+                console.warn(`Non-premium account detected: product="${user.product}"`);
                 setError('Free Spotify account detected. Premium required for in-browser playback.');
-                // Don't initialize player for free users to avoid errors
-                return;
+                return; // Don't initialize player
             }
+
+            console.log('✅ Premium account confirmed, initializing player...');
         } catch (e) {
-            console.error("Failed to check subscription", e);
+            console.error("Failed to check subscription - BLOCKING player initialization:", e);
+            setError('Unable to verify Spotify subscription. Please disconnect and reconnect.');
+            return; // CRITICAL: Don't proceed if we can't verify
         }
 
         const spotifyPlayer = new window.Spotify.Player({

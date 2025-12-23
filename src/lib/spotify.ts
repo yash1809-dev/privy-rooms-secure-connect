@@ -248,7 +248,9 @@ export const spotifyApiRequest = async <T>(
 };
 
 export const getCurrentUser = async (): Promise<SpotifyUser & { product: string }> => {
-    return spotifyApiRequest('/me');
+    const response = await spotifyApiRequest<SpotifyUser & { product: string }>('/me');
+    console.log('Spotify /v1/me response:', response);
+    return response;
 };
 
 export const getPlaybackState = async (): Promise<SpotifyPlaybackState | null> => {
