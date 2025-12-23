@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -45,6 +45,8 @@ import { useProfileData } from "@/hooks/useProfileData";
 import { useTheme } from "@/components/ThemeProvider";
 import { markTodayAsActive, calculateStreak, getXP, addXP, getProgression } from "@/lib/activity";
 import { toast } from "sonner";
+import { useDailyState } from "@/hooks/useDailyState";
+import { useLocalStorage } from "@/hooks/useDebouncedLocalStorage";
 
 // --- CONSTANTS ---
 const SECTIONS = [
@@ -73,73 +75,42 @@ export default function Dashboard() {
   const userProfile = profileData?.me as UserProfile | undefined;
   const { theme, setTheme } = useTheme();
 
-  // --- STATE ---
-  const [minutesFocused, setMinutesFocused] = useState(() => {
-    const saved = localStorage.getItem("dailyFocusLogs");
-    if (saved) {
-      try {
-        const { date, minutes } = JSON.parse(saved);
-        if (date === new Date().toDateString()) return minutes;
-      } catch (e) { console.error(e); }
-    }
-    return 0;
-  });
+  //  --- OPTIMIZED STATE MANAGEMENT ---
+  // Use debounced localStorage hooks to prevent main thread blocking
+  const [minutesFocused, setMinutesFocused] = useDailyState("dailyFocusLogs", 0);
+  const [todos, setTodos] = useDailyState<TodoTask[]>("dailyTodos", []);
 
-  const [todos, setTodos] = useState<TodoTask[]>(() => {
-    const saved = localStorage.getItem("dailyTodos");
-    if (saved) {
-      try {
-        const { date, tasks } = JSON.parse(saved);
-        if (date === new Date().toDateString()) return tasks;
-      } catch (e) { console.error(e); }
-    }
-    return [];
-  });
+  // Background settings - infrequent changes, no debounce needed
+  const [bgImage, setBgImage] = useLocalStorage("dashboardBgImage", "");
+  const [bgOpacity, setBgOpacity] = useLocalStorage("dashboardBgOpacity", 0.5);
+  const [showOrbs, setShowOrbs] = useLocalStorage("dashboardShowOrbs", true);
 
+  // UI state - doesn't need localStorage
   const [unlockedZones, setUnlockedZones] = useState<string[]>(["focus-zone"]);
   const [activeZone, setActiveZone] = useState("focus-zone");
-  const [bgImage, setBgImage] = useState(() => localStorage.getItem("dashboardBgImage") || "");
-  const [bgOpacity, setBgOpacity] = useState(() => {
-    const saved = localStorage.getItem("dashboardBgOpacity");
-    return saved ? parseFloat(saved) : 0.5;
-  });
-  const [showOrbs, setShowOrbs] = useState(() => {
-    const saved = localStorage.getItem("dashboardShowOrbs");
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+
+  // User progression
   const [userXP, setUserXP] = useState(() => getXP());
+
+  // Decorative state - TODO: Move to local components for better performance
   const [buddyStatus, setBuddyStatus] = useState<'idle' | 'focusing' | 'excited' | 'greeting'>('idle');
   const [vocalPrecision, setVocalPrecision] = useState<number>(0);
   const [ninjaPos, setNinjaPos] = useState({ x: 0, y: 0 });
   const [kunoichiPos, setKunoichiPos] = useState({ x: 0, y: 0 });
 
-  const streak = calculateStreak();
-  const dailyProgress = todos.length > 0
-    ? Math.floor((todos.filter(t => t.completed).length / todos.length) * 100)
-    : 0;
+  // Memoize computed values to avoid recalculation on every render
+  const streak = useMemo(() => calculateStreak(), []);
+  const dailyProgress = useMemo(() => {
+    if (todos.length === 0) return 0;
+    return Math.floor((todos.filter(t => t.completed).length / todos.length) * 100);
+  }, [todos]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- EFFECTS ---
-  useEffect(() => {
-    const today = new Date().toDateString();
-    localStorage.setItem("dailyFocusLogs", JSON.stringify({ date: today, minutes: minutesFocused }));
-  }, [minutesFocused]);
+  // No more manual localStorage effects - handled by hooks!
 
-  useEffect(() => {
-    const today = new Date().toDateString();
-    localStorage.setItem("dailyTodos", JSON.stringify({ date: today, tasks: todos }));
-  }, [todos]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboardBgOpacity", bgOpacity.toString());
-    localStorage.setItem("dashboardShowOrbs", JSON.stringify(showOrbs));
-    if (bgImage) localStorage.setItem("dashboardBgImage", bgImage);
-    else localStorage.removeItem("dashboardBgImage");
-  }, [bgOpacity, showOrbs, bgImage]);
-
-  // --- HANDLERS ---
-  const handleXPUpdate = (newXP: number) => {
+  // --- HANDLERS (Optimized with useCallback) ---
+  const handleXPUpdate = useCallback((newXP: number) => {
     const oldLevel = getProgression(userXP).level;
     const newLevel = getProgression(newXP).level;
 
@@ -155,9 +126,9 @@ export default function Dashboard() {
     } else {
       setBuddyStatus('excited');
     }
-  };
+  }, [userXP]);
 
-  const handleSessionComplete = (minutes: number) => {
+  const handleSessionComplete = useCallback((minutes: number) => {
     setMinutesFocused((prev: number) => prev + minutes);
     markTodayAsActive();
 
@@ -171,9 +142,9 @@ export default function Dashboard() {
       description: "Neural augmentations optimized.",
       icon: <Zap className="w-4 h-4 text-amber-400" />,
     });
-  };
+  }, [handleXPUpdate]);
 
-  const handleTaskComplete = (xpGained: number) => {
+  const handleTaskComplete = useCallback((xpGained: number) => {
     const newXP = addXP(xpGained);
     handleXPUpdate(newXP);
     setBuddyStatus('excited');
@@ -181,21 +152,21 @@ export default function Dashboard() {
       description: "Network integration increased.",
       icon: <CheckSquare className="w-4 h-4 text-teal-400" />,
     });
-  };
+  }, [handleXPUpdate]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => setBgImage(e.target?.result as string);
       reader.readAsDataURL(file);
     }
-  };
+  }, []);
 
-  const teleportTo = (id: string) => {
+  const teleportTo = useCallback((id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  }, []);
 
   return (
     <div className="flex h-screen bg-slate-950 text-foreground overflow-hidden selection:bg-teal-500/30 relative max-w-[100vw]">
