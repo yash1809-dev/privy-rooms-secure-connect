@@ -19,10 +19,22 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const playerRef = useRef<SpotifyPlayer | null>(null);
     const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const durationRef = useRef<number>(0);
+    const initializingRef = useRef<boolean>(false);
 
     // Load Spotify Web Playback SDK script
     useEffect(() => {
         if (!enabled) return;
+
+        // If player already exists and is connected, reuse it
+        if (playerRef.current) {
+            console.log('Reusing existing Spotify player');
+            setPlayer(playerRef.current);
+            // Player should still be connected, just update state
+            return;
+        }
+
+        // Prevent multiple simultaneous initializations
+        if (initializingRef.current) return;
 
         // Check if script is already loaded
         if (window.Spotify) {
@@ -42,15 +54,25 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         };
 
         return () => {
-            if (script.parentNode) {
-                document.body.removeChild(script);
-            }
+            // Don't remove script or disconnect player - keep it alive for reuse
+            // Only clean up intervals
+            stopPositionUpdate();
         };
     }, [enabled]);
 
     const initializePlayer = async () => {
+        // Prevent duplicate initialization
+        if (initializingRef.current || playerRef.current) {
+            console.log('Player already initializing or exists, skipping...');
+            return;
+        }
+
+        initializingRef.current = true;
         const token = await getValidAccessToken();
-        if (!token || !window.Spotify) return;
+        if (!token || !window.Spotify) {
+            initializingRef.current = false;
+            return;
+        }
 
         // Check subscription status
         try {
@@ -67,6 +89,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             if (user.product !== 'premium') {
                 console.warn(`Non-premium account detected: product="${user.product}"`);
                 setError('Free Spotify account detected. Premium required for in-browser playback.');
+                initializingRef.current = false;
                 return; // Don't initialize player
             }
 
@@ -74,6 +97,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         } catch (e) {
             console.error("Failed to check subscription - BLOCKING player initialization:", e);
             setError('Unable to verify Spotify subscription. Please disconnect and reconnect.');
+            initializingRef.current = false;
             return; // CRITICAL: Don't proceed if we can't verify
         }
 
@@ -143,6 +167,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
         playerRef.current = spotifyPlayer;
         setPlayer(spotifyPlayer);
+        initializingRef.current = false; // Reset flag after successful initialization
     };
 
     // Start updating position
@@ -199,13 +224,11 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         return () => clearInterval(interval);
     }, [enabled, deviceId, isReady, error]);
 
-    // Cleanup on unmount
+    // Cleanup on unmount - but keep player alive for reuse
     useEffect(() => {
         return () => {
             stopPositionUpdate();
-            if (playerRef.current) {
-                playerRef.current.disconnect();
-            }
+            // Don't disconnect player - it will be reused when component remounts
         };
     }, []);
 
@@ -239,6 +262,21 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         await player.setVolume(volume);
     }, [player]);
 
+    // Explicit disconnect function for when user disconnects Spotify
+    const disconnect = useCallback(() => {
+        if (playerRef.current) {
+            console.log('Explicitly disconnecting Spotify player');
+            playerRef.current.disconnect();
+            playerRef.current = null;
+        }
+        setPlayer(null);
+        setDeviceId(null);
+        setIsReady(false);
+        setCurrentTrack(null);
+        setError(null);
+        initializingRef.current = false;
+    }, []);
+
     return {
         player,
         deviceId,
@@ -253,5 +291,6 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         seek,
         setVolume,
         error,
+        disconnect, // Expose disconnect for explicit cleanup
     };
 }

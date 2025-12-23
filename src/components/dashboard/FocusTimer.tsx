@@ -48,44 +48,88 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
     const spotifyAuth = useSpotifyAuth();
     const spotifyPlayer = useSpotifyPlayer({ enabled: spotifyAuth.isConnected });
     const { data: playlists, isLoading: isLoadingPlaylists } = useSpotifyPlaylists(spotifyAuth.isConnected);
+
+    // Clean up player when auth is disconnected
+    useEffect(() => {
+        if (!spotifyAuth.isConnected && spotifyPlayer.disconnect) {
+            spotifyPlayer.disconnect();
+        }
+    }, [spotifyAuth.isConnected, spotifyPlayer.disconnect]);
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
 
-    // Handle playlist selection and start playback
+    // Handle playlist selection and start playback with retry logic
     const handlePlaylistSelect = async (playlistId: string) => {
         setSelectedPlaylistId(playlistId);
 
-        if (spotifyPlayer.deviceId && spotifyPlayer.isReady) {
+        // Helper function to wait for player to be ready
+        const waitForReady = async (maxAttempts = 5, delayMs = 500): Promise<boolean> => {
+            for (let i = 0; i < maxAttempts; i++) {
+                if (spotifyPlayer.isReady && spotifyPlayer.deviceId) {
+                    return true;
+                }
+                console.log(`Waiting for player to be ready... attempt ${i + 1}/${maxAttempts}`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            return false;
+        };
+
+        // Check if player is ready, wait if needed
+        if (!spotifyPlayer.isReady || !spotifyPlayer.deviceId) {
+            console.log('Player not ready, waiting...');
+            const isReady = await waitForReady();
+            if (!isReady) {
+                toast.error('Player not ready. Please try again in a moment.');
+                return;
+            }
+        }
+
+        // Retry logic for playback
+        const attemptPlayback = async (attempt = 1, maxAttempts = 3): Promise<boolean> => {
             try {
                 const playlist = playlists?.find(p => p.id === playlistId);
-                // Use proper Spotify URI format: spotify:playlist:{id}
                 const playlistUri = `spotify:playlist:${playlistId}`;
-                await spotifyPlay(spotifyPlayer.deviceId, playlistUri);
+
+                console.log(`Attempting playback (attempt ${attempt}/${maxAttempts})...`);
+                await spotifyPlay(spotifyPlayer.deviceId!, playlistUri);
+
                 toast.success("Playing playlist", {
                     description: playlist?.name,
                 });
+                return true;
             } catch (error) {
-                console.error("Failed to start playback:", error);
+                console.error(`Playback attempt ${attempt} failed:`, error);
 
-                // Fallback for errors (like 403 Premium required)
-                toast.error("Playback failed. Opening in Spotify App...", {
-                    action: {
-                        label: "Open App",
-                        onClick: () => {
-                            const playlist = playlists?.find(p => p.id === playlistId);
-                            if (playlist?.external_urls?.spotify) {
-                                window.open(playlist.external_urls.spotify, '_blank');
-                            }
+                if (attempt < maxAttempts) {
+                    // Wait before retry (exponential backoff)
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    return attemptPlayback(attempt + 1, maxAttempts);
+                }
+
+                return false;
+            }
+        };
+
+        const success = await attemptPlayback();
+
+        if (!success) {
+            // All retries failed, fallback to opening in Spotify app
+            const playlist = playlists?.find(p => p.id === playlistId);
+            toast.error("Playback failed. Opening in Spotify App...", {
+                action: {
+                    label: "Open App",
+                    onClick: () => {
+                        if (playlist?.external_urls?.spotify) {
+                            window.open(playlist.external_urls.spotify, '_blank');
                         }
                     }
-                });
-
-                // Auto-open also
-                const playlist = playlists?.find(p => p.id === playlistId);
-                if (playlist?.external_urls?.spotify) {
-                    setTimeout(() => {
-                        window.open(playlist.external_urls.spotify, '_blank');
-                    }, 1000);
                 }
+            });
+
+            // Auto-open also
+            if (playlist?.external_urls?.spotify) {
+                setTimeout(() => {
+                    window.open(playlist.external_urls.spotify, '_blank');
+                }, 1000);
             }
         }
     };
