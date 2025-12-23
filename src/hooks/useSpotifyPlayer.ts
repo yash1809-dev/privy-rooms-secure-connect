@@ -32,19 +32,13 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
         // If player already exists and is connected, reuse it
         if (globalPlayer) {
-            console.log('Reusing existing Spotify player');
+            console.log('Reusing existing Spotify player - already connected');
             setPlayer(globalPlayer);
             setDeviceId(globalDeviceId);
             setIsReady(globalIsReady);
 
-            // Ensure it's connected/active
-            globalPlayer.connect().then(success => {
-                if (success) {
-                    console.log('Existing player re-connected successfully');
-                } else {
-                    console.warn('Existing player failed to re-connect');
-                }
-            });
+            // Don't call connect() - player is already connected
+            // Calling connect() can trigger disconnect/reconnect cycle
 
             // Restore playback state from the existing player
             globalPlayer.getCurrentState().then((state) => {
