@@ -17,6 +17,9 @@ import { SpotifyPlayer } from "@/components/spotify/SpotifyPlayer";
 import { NowPlaying } from "@/components/spotify/NowPlaying";
 import { play as spotifyPlay } from "@/lib/spotify";
 
+// Module-level state to persist selected playlist across navigation
+let globalSelectedPlaylistId: string | null = null;
+
 interface FocusTimerProps {
     onSessionComplete: (minutes: number) => void;
     // New props for real-time updates
@@ -48,10 +51,13 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
     const spotifyAuth = useSpotifyAuth();
     const spotifyPlayer = useSpotifyPlayer({ enabled: spotifyAuth.isConnected });
     const { data: playlists, isLoading: isLoadingPlaylists } = useSpotifyPlaylists(spotifyAuth.isConnected);
-    const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+    // Use module-level variable for persistence
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(globalSelectedPlaylistId);
 
     // Handle playlist selection and start playback with retry logic
     const handlePlaylistSelect = async (playlistId: string) => {
+        // Persist selection globally
+        globalSelectedPlaylistId = playlistId;
         setSelectedPlaylistId(playlistId);
 
         // Helper function to wait for player to be ready
