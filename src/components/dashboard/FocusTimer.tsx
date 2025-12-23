@@ -1,4 +1,4 @@
-
+// FocusTimer component with Spotify integration
 import { useState, useEffect, useRef } from "react";
 import { Play, Pause, RotateCcw, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
