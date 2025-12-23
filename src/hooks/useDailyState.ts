@@ -9,20 +9,25 @@ export function useDailyState<T>(
     initialValue: T,
     debounceMs: number = 500
 ): [T, (value: T | ((prev: T) => T)) => void] {
+    const today = new Date().toDateString();
+
     const [state, setState] = useDebouncedLocalStorage<{ date: string; data: T }>(
         key,
-        { date: new Date().toDateString(), data: initialValue },
+        { date: today, data: initialValue },
         debounceMs
     );
 
-    const today = new Date().toDateString();
-
-    // Reset if date changed
-    const currentData = state.date === today ? state.data : initialValue;
+    // Safety: Check if state has the expected structure before accessing properties
+    const hasValidStructure = state && typeof state === 'object' && 'date' in state && 'data' in state;
+    const currentData = (hasValidStructure && state.date === today) ? state.data : initialValue;
 
     const setData = (value: T | ((prev: T) => T)) => {
         setState((prev) => {
-            const newData = value instanceof Function ? value(prev.data) : value;
+            // Safety: Check prev structure before accessing
+            const hasValidPrev = prev && typeof prev === 'object' && 'date' in prev && 'data' in prev;
+            const prevData = (hasValidPrev && prev.date === today) ? prev.data : initialValue;
+
+            const newData = value instanceof Function ? value(prevData) : value;
             return {
                 date: today,
                 data: newData,
