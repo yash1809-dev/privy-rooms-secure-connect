@@ -37,6 +37,15 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             setDeviceId(globalDeviceId);
             setIsReady(globalIsReady);
 
+            // Ensure it's connected/active
+            globalPlayer.connect().then(success => {
+                if (success) {
+                    console.log('Existing player re-connected successfully');
+                } else {
+                    console.warn('Existing player failed to re-connect');
+                }
+            });
+
             // Restore playback state from the existing player
             globalPlayer.getCurrentState().then((state) => {
                 if (state) {
