@@ -244,7 +244,18 @@ export const spotifyApiRequest = async <T>(
         throw new Error(`Spotify API error: ${error.error?.message || response.statusText}`);
     }
 
-    return response.json();
+    // Handle 204 No Content (e.g., from play/pause endpoints)
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return undefined as T;
+    }
+
+    // Try to parse JSON, but handle empty responses gracefully
+    const text = await response.text();
+    if (!text) {
+        return undefined as T;
+    }
+
+    return JSON.parse(text);
 };
 
 export const getCurrentUser = async (): Promise<SpotifyUser & { product: string }> => {
