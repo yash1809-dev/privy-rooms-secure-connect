@@ -428,20 +428,6 @@ export default function Dashboard() {
                     onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
                   />
                 </Card>
-
-                <div className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: "Deep Work", desc: "No distractions", icon: Zap },
-                    { label: "Flow State", desc: "Pure immersion", icon: Sparkles },
-                    { label: "Ascension", desc: "Next level focus", icon: Activity }
-                  ].map((item, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group cursor-default">
-                      <item.icon className="w-5 h-5 text-teal-400 mb-2 group-hover:scale-110 transition-transform" />
-                      <p className="text-[10px] font-black text-white uppercase tracking-wider">{item.label}</p>
-                      <p className="text-[8px] text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div id="focus-plant-container" className="lg:col-span-3 flex flex-col items-center justify-center p-8 bg-black/20 rounded-[3rem] border border-white/5 relative group min-h-[500px]">
