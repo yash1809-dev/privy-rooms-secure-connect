@@ -57,12 +57,12 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
         if (spotifyPlayer.deviceId && spotifyPlayer.isReady) {
             try {
                 const playlist = playlists?.find(p => p.id === playlistId);
-                if (playlist) {
-                    await spotifyPlay(spotifyPlayer.deviceId, playlist.tracks.href);
-                    toast.success("Playing playlist", {
-                        description: playlist.name,
-                    });
-                }
+                // Use proper Spotify URI format: spotify:playlist:{id}
+                const playlistUri = `spotify:playlist:${playlistId}`;
+                await spotifyPlay(spotifyPlayer.deviceId, playlistUri);
+                toast.success("Playing playlist", {
+                    description: playlist?.name,
+                });
             } catch (error) {
                 console.error("Failed to start playback:", error);
 
