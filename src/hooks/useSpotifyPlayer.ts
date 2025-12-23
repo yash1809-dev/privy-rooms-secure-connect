@@ -12,6 +12,11 @@ let globalDeviceId: string | null = null;
 let globalIsReady: boolean = false;
 let globalIsInitializing: boolean = false;
 
+// Module-level playback state - for persistence
+let globalPosition: number = 0;
+let globalDuration: number = 0;
+let globalPositionInterval: NodeJS.Timeout | null = null;
+
 export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     // Use global state as initial values, sync back on changes
     const [player, setPlayer] = useState<SpotifyPlayer | null>(globalPlayer);
