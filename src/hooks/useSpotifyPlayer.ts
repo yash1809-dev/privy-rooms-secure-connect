@@ -6,42 +6,39 @@ interface UseSpotifyPlayerOptions {
     enabled: boolean;
 }
 
+// Module-level state - persists across component remounts
+let globalPlayer: SpotifyPlayer | null = null;
+let globalDeviceId: string | null = null;
+let globalIsReady: boolean = false;
+let globalIsInitializing: boolean = false;
+
 export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
-    const [player, setPlayer] = useState<SpotifyPlayer | null>(null);
-    const [deviceId, setDeviceId] = useState<string | null>(null);
-    const [isReady, setIsReady] = useState(false);
+    // Use global state as initial values, sync back on changes
+    const [player, setPlayer] = useState<SpotifyPlayer | null>(globalPlayer);
+    const [deviceId, setDeviceId] = useState<string | null>(globalDeviceId);
+    const [isReady, setIsReady] = useState(globalIsReady);
     const [isPaused, setIsPaused] = useState(true);
     const [currentTrack, setCurrentTrack] = useState<any | null>(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
-    const playerRef = useRef<SpotifyPlayer | null>(null);
     const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const durationRef = useRef<number>(0);
-    const initializingRef = useRef<boolean>(false);
-    // Persist deviceId and isReady across remounts
-    const deviceIdRef = useRef<string | null>(null);
-    const isReadyRef = useRef<boolean>(false);
 
     // Load Spotify Web Playback SDK script
     useEffect(() => {
         if (!enabled) return;
 
         // If player already exists and is connected, reuse it
-        if (playerRef.current) {
+        if (globalPlayer) {
             console.log('Reusing existing Spotify player');
-            setPlayer(playerRef.current);
+            setPlayer(globalPlayer);
+            setDeviceId(globalDeviceId);
+            setIsReady(globalIsReady);
 
-            // Restore persisted deviceId and isReady from refs
-            if (deviceIdRef.current) {
-                console.log('Restoring deviceId:', deviceIdRef.current);
-                setDeviceId(deviceIdRef.current);
-                setIsReady(isReadyRef.current);
-            }
-
-            // Restore state from the existing player
-            playerRef.current.getCurrentState().then((state) => {
+            // Restore playback state from the existing player
+            globalPlayer.getCurrentState().then((state) => {
                 if (state) {
                     setIsPaused(state.paused);
                     setCurrentTrack(state.track_window.current_track);
@@ -60,7 +57,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         }
 
         // Prevent multiple simultaneous initializations
-        if (initializingRef.current) return;
+        if (globalIsInitializing) return;
 
         // Check if script is already loaded
         if (window.Spotify) {
@@ -88,15 +85,16 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
     const initializePlayer = async () => {
         // Prevent duplicate initialization
-        if (initializingRef.current || playerRef.current) {
+        if (globalIsInitializing || globalPlayer) {
             console.log('Player already initializing or exists, skipping...');
             return;
         }
 
-        initializingRef.current = true;
+        globalIsInitializing = true;
+
         const token = await getValidAccessToken();
         if (!token || !window.Spotify) {
-            initializingRef.current = false;
+            globalIsInitializing = false;
             return;
         }
 
@@ -115,7 +113,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             if (user.product !== 'premium') {
                 console.warn(`Non-premium account detected: product="${user.product}"`);
                 setError('Free Spotify account detected. Premium required for in-browser playback.');
-                initializingRef.current = false;
+                globalIsInitializing = false;
                 return; // Don't initialize player
             }
 
@@ -123,7 +121,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         } catch (e) {
             console.error("Failed to check subscription - BLOCKING player initialization:", e);
             setError('Unable to verify Spotify subscription. Please disconnect and reconnect.');
-            initializingRef.current = false;
+            globalIsInitializing = false;
             return; // CRITICAL: Don't proceed if we can't verify
         }
 
@@ -139,19 +137,21 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         // Ready
         spotifyPlayer.addListener('ready', ({ device_id }) => {
             console.log('Spotify Player Ready with Device ID', device_id);
+            // Updating local state
             setDeviceId(device_id);
             setIsReady(true);
             setError(null);
-            // Persist to refs for reuse after remount
-            deviceIdRef.current = device_id;
-            isReadyRef.current = true;
+
+            // Updating global persistence
+            globalDeviceId = device_id;
+            globalIsReady = true;
         });
 
         // Not Ready
         spotifyPlayer.addListener('not_ready', ({ device_id }) => {
             console.log('Device ID has gone offline', device_id);
             setIsReady(false);
-            isReadyRef.current = false;
+            globalIsReady = false;
         });
 
         // Errors
@@ -195,9 +195,10 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         // Connect to the player
         spotifyPlayer.connect();
 
-        playerRef.current = spotifyPlayer;
+        // Update local and global state
+        globalPlayer = spotifyPlayer;
         setPlayer(spotifyPlayer);
-        initializingRef.current = false; // Reset flag after successful initialization
+        globalIsInitializing = false; // Reset flag after successful initialization
     };
 
     // Start updating position
@@ -266,14 +267,13 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     const togglePlay = useCallback(async () => {
         if (player) {
             await player.togglePlay();
-        } else {
-            // TODO: Remote control fallback could go here
         }
     }, [player]);
 
     const next = useCallback(async () => {
-        if (!player) return;
-        await player.nextTrack();
+        if (player) {
+            await player.nextTrack();
+        }
     }, [player]);
 
     const previous = useCallback(async () => {
@@ -294,20 +294,23 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
     // Explicit disconnect function for when user disconnects Spotify
     const disconnect = useCallback(() => {
-        if (playerRef.current) {
+        if (globalPlayer) {
             console.log('Explicitly disconnecting Spotify player');
-            playerRef.current.disconnect();
-            playerRef.current = null;
+            globalPlayer.disconnect();
+            globalPlayer = null;
         }
+
+        // Reset persisted globals
+        globalDeviceId = null;
+        globalIsReady = false;
+        globalIsInitializing = false;
+
+        // Reset local state
         setPlayer(null);
         setDeviceId(null);
         setIsReady(false);
         setCurrentTrack(null);
         setError(null);
-        initializingRef.current = false;
-        // Clear persisted refs
-        deviceIdRef.current = null;
-        isReadyRef.current = false;
     }, []);
 
     return {
