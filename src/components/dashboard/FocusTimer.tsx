@@ -48,13 +48,6 @@ export function FocusTimer({ onSessionComplete, setMinutesFocused, onTick, onSta
     const spotifyAuth = useSpotifyAuth();
     const spotifyPlayer = useSpotifyPlayer({ enabled: spotifyAuth.isConnected });
     const { data: playlists, isLoading: isLoadingPlaylists } = useSpotifyPlaylists(spotifyAuth.isConnected);
-
-    // Clean up player when auth is disconnected
-    useEffect(() => {
-        if (!spotifyAuth.isConnected && spotifyPlayer.disconnect) {
-            spotifyPlayer.disconnect();
-        }
-    }, [spotifyAuth.isConnected, spotifyPlayer.disconnect]);
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
 
     // Handle playlist selection and start playback with retry logic
