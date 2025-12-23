@@ -18,6 +18,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
     const playerRef = useRef<SpotifyPlayer | null>(null);
     const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const durationRef = useRef<number>(0);
 
     // Load Spotify Web Playback SDK script
     useEffect(() => {
@@ -127,6 +128,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
             setCurrentTrack(state.track_window.current_track);
             setPosition(state.position);
             setDuration(state.duration);
+            durationRef.current = state.duration; // Keep ref in sync
 
             // Update position while playing
             if (!state.paused) {
@@ -148,7 +150,11 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         if (positionIntervalRef.current) return;
 
         positionIntervalRef.current = setInterval(() => {
-            setPosition((prev) => Math.min(prev + 1000, duration));
+            setPosition((prev) => {
+                const newPos = prev + 1000;
+                // Use ref to get current duration (avoids closure issue)
+                return newPos < durationRef.current ? newPos : durationRef.current;
+            });
         }, 1000);
     };
 
