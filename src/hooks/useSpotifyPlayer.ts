@@ -32,15 +32,28 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
         // If player already exists and is connected, reuse it
         if (globalPlayer) {
-            console.log('Reusing existing Spotify player - already connected');
+            console.log('Reusing existing Spotify player - syncing state');
             setPlayer(globalPlayer);
             setDeviceId(globalDeviceId);
             setIsReady(globalIsReady);
 
-            // Don't call connect() - player is already connected
-            // Calling connect() can trigger disconnect/reconnect cycle
+            // Re-attach player state listener for this component instance
+            globalPlayer.addListener('player_state_changed', (state: SpotifyWebPlaybackState | null) => {
+                if (!state) {
+                    setCurrentTrack(null);
+                    setIsPaused(true);
+                    return;
+                }
+                setIsPaused(state.paused);
+                setCurrentTrack(state.track_window.current_track);
+                setPosition(state.position);
+                setDuration(state.duration);
+                durationRef.current = state.duration;
+                globalPosition = state.position;
+                globalDuration = state.duration;
+            });
 
-            // Restore playback state from the existing player
+            // Restore current playback state
             globalPlayer.getCurrentState().then((state) => {
                 if (state) {
                     setIsPaused(state.paused);
@@ -48,11 +61,6 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
                     setPosition(state.position);
                     setDuration(state.duration);
                     durationRef.current = state.duration;
-
-                    // Resume position updates if playing
-                    if (!state.paused) {
-                        startPositionUpdate();
-                    }
                 }
             });
 
@@ -261,7 +269,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
     // Cleanup on unmount - but keep player alive for reuse
     useEffect(() => {
         return () => {
-            stopPositionUpdate();
+            // Don't stop global interval - it persists across navigation
             // Don't disconnect player - it will be reused when component remounts
         };
     }, []);
@@ -297,8 +305,15 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
 
     // Explicit disconnect function for when user disconnects Spotify
     const disconnect = useCallback(() => {
+        console.log('Explicitly disconnecting Spotify player');
+
+        // Stop global position interval
+        if (globalPositionInterval) {
+            clearInterval(globalPositionInterval);
+            globalPositionInterval = null;
+        }
+
         if (globalPlayer) {
-            console.log('Explicitly disconnecting Spotify player');
             globalPlayer.disconnect();
             globalPlayer = null;
         }
@@ -307,6 +322,8 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         globalDeviceId = null;
         globalIsReady = false;
         globalIsInitializing = false;
+        globalPosition = 0;
+        globalDuration = 0;
 
         // Reset local state
         setPlayer(null);
