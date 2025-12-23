@@ -90,9 +90,7 @@ export function useSpotifyPlayer({ enabled }: UseSpotifyPlayerOptions) {
         };
 
         return () => {
-            // Don't remove script or disconnect player - keep it alive for reuse
-            // Only clean up intervals
-            stopPositionUpdate();
+            // Don't stop interval, don't remove script - keep everything alive
         };
     }, [enabled]);
 
