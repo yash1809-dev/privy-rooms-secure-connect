@@ -313,7 +313,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }, []);
 
     // Show message notification
-    const showMessageNotification = useCallback((data: {
+    const showMessageNotification = useCallback(async (data: {
         groupId: string;
         groupName: string;
         senderName: string;
@@ -361,44 +361,56 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             }, NOTIFICATION_DURATION);
         }
 
-        // ALWAYS show browser notification when permission is granted
-        // This ensures it works on mobile background, other apps, etc.
-        console.log('[Notifications] Checking browser notification - permission:', permission, 'Notification API:', 'Notification' in window);
+        // Show notification using Service Worker (works in background) or fallback to Notification API
+        console.log('[Notifications] Checking notification - permission:', permission);
 
         if (permission === 'granted') {
             try {
-                console.log('[Notifications] Creating browser notification for:', notificationData.title);
+                console.log('[Notifications] Creating notification for:', notificationData.title);
 
-                const browserNotification = new Notification(notificationData.title, {
-                    body: notificationData.body,
-                    icon: data.senderAvatar || '/favicon.ico',
-                    tag: `chat-${data.groupId}`,
-                    badge: '/favicon.ico',
-                    requireInteraction: false,
-                    silent: document.visibilityState === 'visible', // Silent if already showing in-app
-                });
+                // Try to use Service Worker registration first (works in mobile background)
+                const swRegistration = (window as any).__swRegistration as ServiceWorkerRegistration | undefined;
 
-                browserNotification.onclick = () => {
-                    window.focus();
-                    navigate(`/chats/${data.groupId}`);
-                    browserNotification.close();
-                };
+                if (swRegistration && 'showNotification' in swRegistration) {
+                    // Use Service Worker notification - this works in mobile background!
+                    await swRegistration.showNotification(notificationData.title, {
+                        body: notificationData.body,
+                        icon: data.senderAvatar || '/favicon.ico',
+                        badge: '/favicon.ico',
+                        tag: `chat-${data.groupId}`,
+                        data: { groupId: data.groupId, url: `/chats/${data.groupId}` },
+                        requireInteraction: false,
+                        silent: document.visibilityState === 'visible',
+                    });
+                    console.log('[Notifications] ✅ Service Worker notification shown');
+                } else {
+                    // Fallback to regular Notification API (won't work in mobile background)
+                    console.log('[Notifications] Service Worker not available, using Notification API');
 
-                browserNotification.onshow = () => {
-                    console.log('[Notifications] ✅ Browser notification SHOWN');
-                };
+                    const browserNotification = new Notification(notificationData.title, {
+                        body: notificationData.body,
+                        icon: data.senderAvatar || '/favicon.ico',
+                        tag: `chat-${data.groupId}`,
+                        badge: '/favicon.ico',
+                        requireInteraction: false,
+                        silent: document.visibilityState === 'visible',
+                    });
 
-                browserNotification.onerror = (e) => {
-                    console.error('[Notifications] ❌ Browser notification ERROR:', e);
-                };
+                    browserNotification.onclick = () => {
+                        window.focus();
+                        navigate(`/chats/${data.groupId}`);
+                        browserNotification.close();
+                    };
 
-                setTimeout(() => browserNotification.close(), NOTIFICATION_DURATION);
-                console.log('[Notifications] Browser notification created successfully');
+                    setTimeout(() => browserNotification.close(), NOTIFICATION_DURATION);
+                }
+
+                console.log('[Notifications] Notification created successfully');
             } catch (error) {
-                console.error('[Notifications] Browser notification error:', error);
+                console.error('[Notifications] Notification error:', error);
             }
         } else {
-            console.log('[Notifications] ⚠️ Skipping browser notification - permission not granted:', permission);
+            console.log('[Notifications] ⚠️ Skipping notification - permission not granted:', permission);
         }
 
         console.log('[Notifications] Message notification shown:', data.groupName);
