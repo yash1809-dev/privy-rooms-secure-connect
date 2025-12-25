@@ -51,7 +51,7 @@ export function useChatsData() {
             }
 
             const groupIds = memberDataFinal.map((m: any) => m.group_id);
-            const memberMap = new Map(memberDataFinal.map((m: any) => [m.group_id, m]));
+            const memberMap = new Map<string, any>(memberDataFinal.map((m: any) => [m.group_id, m] as [string, any]));
 
             // Load group details
             const { data: groupsData } = await supabase
@@ -100,6 +100,7 @@ export function useChatsData() {
 
                     return {
                         ...group,
+                        avatar_url: group.avatar_url || null,
                         is_pinned: memberInfo?.is_pinned || false,
                         is_archived: memberInfo?.is_archived || false,
                         lastMessage: lastMsg ? {
@@ -108,7 +109,7 @@ export function useChatsData() {
                             sender_name: (lastMsg.sender as any)?.username || "Unknown"
                         } : undefined,
                         unreadCount: Math.min(unreadCount, 99)
-                    };
+                    } as GroupWithLastMessage;
                 })
             );
 
@@ -123,7 +124,9 @@ export function useChatsData() {
 
             return { groups: sortedGroups };
         },
-        staleTime: 2 * 60 * 1000, // 2 minutes
+        staleTime: 0, // Must be 0 for instant cache update reactivity
         gcTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnWindowFocus: true,
+        refetchInterval: false,
     });
 }

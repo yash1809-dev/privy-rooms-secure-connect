@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +25,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserSearchDialog } from "@/components/UserSearchDialog";
 import { useVideoCalls } from "@/hooks/useVideoCalls";
 import { Footer } from "@/components/Footer";
+import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 
 interface Group {
     id: string;
@@ -61,12 +62,18 @@ export default function Chats() {
     // Video calling hook
     const { activeCallId, activeCallParticipants, startCall, setActiveCallId } = useVideoCalls();
 
+    // Browser notifications hook
+    const { permission, requestPermission, showNotification, setActiveGroupId } = useBrowserNotifications();
+
     // Use React Query for data caching
     const { data: cachedData, isLoading: queriesLoading } = useChatsData();
 
-    const [groups, setGroups] = useState<GroupWithLastMessage[]>([]);
+    // Use cached data directly-don't copy to local state!
+    // This ensures component re-renders when React Query cache updates
+    const groups = cachedData?.groups || [];
+    const loading = queriesLoading;
+
     const [filteredGroups, setFilteredGroups] = useState<GroupWithLastMessage[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showArchived, setShowArchived] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -88,20 +95,102 @@ export default function Chats() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Load data from React Query cache when available
+    // Request notification permission on mount
     useEffect(() => {
-        if (cachedData?.groups) {
-            setGroups(cachedData.groups);
-            setFilteredGroups(cachedData.groups);
-            setLoading(false);
+        if (permission === 'default') {
+            // Request permission after a short delay to not be intrusive
+            const timer = setTimeout(() => {
+                requestPermission();
+            }, 2000);
+            return () => clearTimeout(timer);
         }
-    }, [cachedData]);
+    }, [permission, requestPermission]);
 
+    // Update active group for notification filtering
     useEffect(() => {
+        setActiveGroupId(groupId || null);
+    }, [groupId, setActiveGroupId]);
+
+    // Store showNotification in a ref to avoid re-render loop
+    const showNotificationRef = useRef(showNotification);
+    useEffect(() => {
+        showNotificationRef.current = showNotification;
+    }, [showNotification]);
+
+    // Store groups in a ref to avoid re-render loop
+    const groupsRef = useRef(groups);
+    useEffect(() => {
+        groupsRef.current = groups;
+    }, [groups]);
+
+    // Store queryClient in a ref to use in subscription callbacks
+    const queryClientRef = useRef(queryClient);
+    useEffect(() => {
+        queryClientRef.current = queryClient;
+    }, [queryClient]);
+
+    // Listen for new message events and show notifications
+    // Uses refs to avoid dependency issues and infinite loops
+    useEffect(() => {
+        console.log("[Notifications] Setting up event listener (once)");
+
+        const handleNewMessage = async (event: CustomEvent) => {
+            console.log("[Notifications] 📨 Received new-message event:", event.detail);
+
+            const { groupId: msgGroupId, senderName, content, audio_url, file_url } = event.detail;
+
+            // Get group name for notification-use ref for latest value
+            const group = groupsRef.current.find(g => g.id === msgGroupId);
+            const groupName = group?.name || 'Unknown Group';
+
+            console.log("[Notifications] Group found:", groupName, "for ID:", msgGroupId);
+
+            // Format message preview
+            let messagePreview = content;
+            if (audio_url) {
+                messagePreview = '🎤 Voice message';
+            } else if (file_url) {
+                messagePreview = '📎 Attachment';
+            }
+
+            // Show browser notification-use ref to avoid dependency
+            await showNotificationRef.current({
+                title: groupName,
+                body: `${senderName}: ${messagePreview}`,
+                icon: group?.avatar_url || undefined,
+                tag: msgGroupId,
+                data: { groupId: msgGroupId },
+            });
+
+            console.log("[Notifications] showNotification completed");
+        };
+
+        window.addEventListener('new-message', handleNewMessage as EventListener);
+        console.log("[Notifications] Event listener registered");
+
+        return () => {
+            console.log("[Notifications] Cleaning up event listener");
+            window.removeEventListener('new-message', handleNewMessage as EventListener);
+        };
+    }, []); // Empty dependency array-uses refs for latest values
+
+    // Update filtered groups whenever groups or search changes
+    useEffect(() => {
+        const filtered = groups.filter((group: GroupWithLastMessage) => {
+            const matchesSearch = group.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesArchive = showArchived ? group.is_archived : !group.is_archived;
+            return matchesSearch && matchesArchive;
+        });
+        setFilteredGroups(filtered);
+    }, [groups, searchQuery, showArchived]);
+
+    // Load groups and set up base subscriptions on mount
+    useEffect(() => {
+        console.log("[Chat List] Initial load");
         loadGroups();
         loadCallHistory();
 
-        // REAL-TIME SUBSCRIPTION: Listen for group membership changes
+        // REAL-TIME SUBSCRIPTION: Listen for group membership and group changes
         const channel = supabase
             .channel('chat-list-updates')
             .on(
@@ -115,7 +204,7 @@ export default function Chats() {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user && ((payload.new as any)?.user_id === user.id || (payload.old as any)?.user_id === user.id)) {
                         console.log("Real-time: Group membership changed, refetching groups");
-                        queryClient.invalidateQueries({ queryKey: ['chats'] });
+                        queryClientRef.current.invalidateQueries({ queryKey: ['chats'] });
                     }
                 }
             )
@@ -128,28 +217,101 @@ export default function Chats() {
                 },
                 () => {
                     console.log("Real-time: Group details changed, refetching groups");
-                    queryClient.invalidateQueries({ queryKey: ['chats'] });
+                    queryClientRef.current.invalidateQueries({ queryKey: ['chats'] });
                 }
             )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'group_messages',
-                },
-                () => {
-                    // Update last message preview when any new message arrives
-                    console.log("Real-time: New message arrived, refetching groups");
-                    queryClient.invalidateQueries({ queryKey: ['chats'] });
-                }
-            )
-            .subscribe();
+            .subscribe((status) => {
+                console.log("[Chat List] Base subscription status:", status);
+            });
 
         return () => {
+            console.log("[Chat List] Cleaning up base subscriptions");
             supabase.removeChannel(channel);
         };
     }, []);
+
+    // PER-GROUP SUBSCRIPTIONS: Subscribe to each group's messages for real-time chat list updates
+    // This works with RLS because each subscription has a specific group_id filter
+    useEffect(() => {
+        if (!groups || groups.length === 0) return;
+
+        console.log("[Chat List] Setting up per-group message subscriptions for", groups.length, "groups");
+
+        const channels: ReturnType<typeof supabase.channel>[] = [];
+
+        groups.forEach((group) => {
+            const channel = supabase
+                .channel(`chat-list-group-${group.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'group_messages',
+                        filter: `group_id=eq.${group.id}` // Filter by group_id - works with RLS!
+                    },
+                    async (payload) => {
+                        const newMessage = payload.new as any;
+                        console.log("[Chat List] 📨 New message in group:", group.name, "-", newMessage.content?.substring(0, 20));
+
+                        // Fetch sender info
+                        const { data: senderData } = await supabase
+                            .from('profiles')
+                            .select('username')
+                            .eq('id', newMessage.sender_id)
+                            .single();
+
+                        // Get current user to check if own message
+                        const { data: { user } } = await supabase.auth.getUser();
+                        const isOwnMessage = user?.id === newMessage.sender_id;
+
+                        // Update chat list cache directly for instant update
+                        queryClientRef.current.setQueryData(['chats'], (oldData: any) => {
+                            if (!oldData?.groups) return oldData;
+
+                            const updatedGroups = oldData.groups.map((g: any) => {
+                                if (g.id === group.id) {
+                                    console.log("[Chat List] ✅ Updating group:", g.name);
+                                    return {
+                                        ...g,
+                                        lastMessage: {
+                                            content: newMessage.content,
+                                            created_at: newMessage.created_at,
+                                            sender_name: senderData?.username || 'Unknown'
+                                        },
+                                        unreadCount: isOwnMessage ? g.unreadCount : (g.unreadCount || 0) + 1
+                                    };
+                                }
+                                return g;
+                            });
+
+                            // Re-sort: pinned first, then by latest message
+                            const sorted = [...updatedGroups].sort((a: any, b: any) => {
+                                if (a.is_pinned && !b.is_pinned) return -1;
+                                if (!a.is_pinned && b.is_pinned) return 1;
+                                const aTime = a.lastMessage?.created_at || a.created_at;
+                                const bTime = b.lastMessage?.created_at || b.created_at;
+                                return new Date(bTime).getTime() - new Date(aTime).getTime();
+                            });
+
+                            return { groups: sorted };
+                        });
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log("[Chat List] ✅ Subscribed to:", group.name);
+                    }
+                });
+
+            channels.push(channel);
+        });
+
+        return () => {
+            console.log("[Chat List] Cleaning up per-group subscriptions");
+            channels.forEach(channel => supabase.removeChannel(channel));
+        };
+    }, [groups]); // Re-subscribe when groups change
 
     const loadGroups = async () => {
         // Invalidate cache and let React Query refetch
@@ -185,7 +347,7 @@ export default function Chats() {
             const { data: calls } = await (supabase as any)
                 .from("video_calls")
                 .select("id, creator_id, status, created_at")
-                .or(`creator_id.eq.${user.id}`)
+                .or(`creator_id.eq.${user.id} `)
                 .order("created_at", { ascending: false })
                 .limit(20);
 
@@ -228,18 +390,25 @@ export default function Chats() {
 
             if (error) throw error;
 
-            setGroups(groups.map(g =>
-                g.id === groupId ? { ...g, is_pinned: !currentStatus } : g
-            ).sort((a, b) => {
-                // Re-sort locally
-                const aPinned = a.id === groupId ? !currentStatus : a.is_pinned;
-                const bPinned = b.id === groupId ? !currentStatus : b.is_pinned;
-                if (aPinned && !bPinned) return -1;
-                if (!aPinned && bPinned) return 1;
-                const dateA = new Date(a.lastMessage?.created_at || a.created_at).getTime();
-                const dateB = new Date(b.lastMessage?.created_at || b.created_at).getTime();
-                return dateB - dateA;
-            }));
+            // Update React Query cache instead of local state
+            queryClient.setQueryData(['chats'], (oldData: any) => {
+                if (!oldData?.groups) return oldData;
+
+                const updatedGroups = oldData.groups.map((g: any) =>
+                    g.id === groupId ? { ...g, is_pinned: !currentStatus } : g
+                );
+
+                // Re-sort: pinned first, then by time
+                const sorted = [...updatedGroups].sort((a: any, b: any) => {
+                    if (a.is_pinned && !b.is_pinned) return -1;
+                    if (!a.is_pinned && b.is_pinned) return 1;
+                    const aTime = a.lastMessage?.created_at || a.created_at;
+                    const bTime = b.lastMessage?.created_at || b.created_at;
+                    return new Date(bTime).getTime() - new Date(aTime).getTime();
+                });
+
+                return { groups: sorted };
+            });
 
             // Pinned/unpinned silently
         } catch (error) {
@@ -261,11 +430,15 @@ export default function Chats() {
 
             if (error) throw error;
 
-            // Update local state
-            const updatedGroups = groups.map(g =>
-                g.id === groupId ? { ...g, is_archived: !currentStatus } : g
-            );
-            setGroups(updatedGroups);
+            // Update React Query cache
+            queryClient.setQueryData(['chats'], (oldData: any) => {
+                if (!oldData?.groups) return oldData;
+                return {
+                    groups: oldData.groups.map((g: any) =>
+                        g.id === groupId ? { ...g, is_archived: !currentStatus } : g
+                    )
+                };
+            });
 
             // Archived/unarchived silently
         } catch (error) {
@@ -297,11 +470,13 @@ export default function Chats() {
 
             if (memberError) throw memberError;
 
-            // Remove from local state
-            setGroups(prev => prev.filter(g => g.id !== groupToDelete));
-
-            // Invalidate and refetch the chats data
-            queryClient.invalidateQueries({ queryKey: ['chats'] });
+            // Update React Query cache
+            queryClient.setQueryData(['chats'], (oldData: any) => {
+                if (!oldData?.groups) return oldData;
+                return {
+                    groups: oldData.groups.filter((g: any) => g.id !== groupToDelete)
+                };
+            });
 
             // If we're viewing this chat, navigate back to chat list
             if (groupId === groupToDelete) {
@@ -339,7 +514,7 @@ export default function Chats() {
             // On mobile, navigate to full-screen chat
             navigate(`/chats/${chatGroupId}`);
         } else {
-            // On desktop, update URL for deep linking but stay in two-pane view
+            // On desktop, update URL without full navigation
             navigate(`/chats/${chatGroupId}`, { replace: true });
         }
     };
@@ -359,11 +534,11 @@ export default function Chats() {
 
     const chatListSidebar = (
         <aside className={`flex flex-col h-screen ${isMobile ? 'w-full' : 'w-[380px]'} bg-slate-950 text-white border-r border-white/10 overflow-hidden`}>
-            {/* Mobile Tabs - shown only on mobile */}
+            {/* Mobile Tabs-shown only on mobile */}
             <div className="lg:hidden flex border-b border-white/10 bg-slate-900 text-slate-400">
                 <button
                     className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
-                        }`}
+                        } `}
                     onClick={() => setActiveTab("chats")}
                 >
                     <MessageSquare className="h-5 w-5" />
@@ -374,7 +549,7 @@ export default function Chats() {
                 </button>
                 <button
                     className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
-                        }`}
+                        } `}
                     onClick={() => setActiveTab("calls")}
                 >
                     <Phone className="h-5 w-5" />
@@ -463,11 +638,11 @@ export default function Chats() {
                 </div>
             </header>
 
-            {/* Desktop Tabs - always visible on desktop, hidden on mobile */}
+            {/* Desktop Tabs-always visible on desktop, hidden on mobile */}
             <div className="hidden lg:flex border-b border-white/10 bg-slate-900 text-slate-400">
                 <button
                     className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors relative ${activeTab === "chats" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
-                        }`}
+                        } `}
                     onClick={() => setActiveTab("chats")}
                 >
                     <MessageSquare className="h-5 w-5" />
@@ -478,7 +653,7 @@ export default function Chats() {
                 </button>
                 <button
                     className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${activeTab === "calls" ? "bg-slate-800 text-teal-400 border-b-2 border-teal-500" : "hover:bg-slate-800/50 hover:text-white"
-                        }`}
+                        } `}
                     onClick={() => setActiveTab("calls")}
                 >
                     <Phone className="h-5 w-5" />
@@ -509,7 +684,7 @@ export default function Chats() {
                             {(showArchived ? filteredGroups.filter(g => g.is_archived) : filteredGroups.filter(g => !g.is_archived)).map((group) => (
                                 <div
                                     key={group.id}
-                                    className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative ${groupId === group.id ? 'bg-white/10' : ''}`}
+                                    className={`flex items-center gap-3 sm: gap-4 p-3 sm: p-4 border-b border-white/5 hover: bg-white/5 cursor-pointer transition-colors relative ${groupId === group.id ? 'bg-white/10' : ''} `}
                                     onClick={() => handleChatClick(group.id)}
                                     onMouseEnter={() => {
                                         // Prefetch messages on hover
@@ -531,7 +706,7 @@ export default function Chats() {
                                     <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 border border-white/10">
                                         <AvatarImage src={group.avatar_url || `https://api.dicebear.com/7.x/shapes/svg?seed=${group.id}`} className="object-cover" />
                                         <AvatarFallback className="bg-slate-800 text-teal-400">{group.name[0]?.toUpperCase()}</AvatarFallback>
-                                    </Avatar>
+                                    </Avatar >
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1 sm:gap-2 mb-1">
@@ -588,89 +763,93 @@ export default function Chats() {
                                             </DropdownMenu>
                                         </div>
                                     </div>
-                                </div>
+                                </div >
                             ))}
-                        </div>
+                        </div >
                     )}
 
                     {/* Archived Chats Button */}
-                    {!showArchived && !searchQuery && groups.some(g => g.is_archived) && (
-                        <div className="p-4 border-t border-white/10 mt-auto">
-                            <Button
-                                variant="ghost"
-                                className="w-full flex items-center justify-between text-slate-400 hover:text-white hover:bg-white/5"
-                                onClick={() => setShowArchived(true)}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Archive className="h-4 w-4" />
-                                    <span>Archived</span>
-                                </div>
-                                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded-full">{groups.filter(g => g.is_archived).length}</span>
-                            </Button>
-                        </div>
-                    )}
-                </main>
+                    {
+                        !showArchived && !searchQuery && groups.some(g => g.is_archived) && (
+                            <div className="p-4 border-t border-white/10 mt-auto">
+                                <Button
+                                    variant="ghost"
+                                    className="w-full flex items-center justify-between text-slate-400 hover:text-white hover:bg-white/5"
+                                    onClick={() => setShowArchived(true)}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Archive className="h-4 w-4" />
+                                        <span>Archived</span>
+                                    </div>
+                                    <span className="text-xs bg-slate-800 px-2 py-0.5 rounded-full">{groups.filter(g => g.is_archived).length}</span>
+                                </Button>
+                            </div>
+                        )
+                    }
+                </main >
             )}
 
             {/* Call History */}
-            {activeTab === "calls" && (
-                <main className="flex-1 overflow-y-auto px-4 py-6 custom-scrollbar">
-                    {/* Start Call Button */}
-                    <div className="mb-6">
-                        <Button
-                            className="w-full bg-teal-600 hover:bg-teal-500 text-white"
-                            size="lg"
-                            onClick={() => setContactSelectorOpen(true)}
-                        >
-                            <Video className="mr-2 h-5 w-5" />
-                            Start Video Call
-                        </Button>
-                    </div>
+            {
+                activeTab === "calls" && (
+                    <main className="flex-1 overflow-y-auto px-4 py-6 custom-scrollbar">
+                        {/* Start Call Button */}
+                        <div className="mb-6">
+                            <Button
+                                className="w-full bg-teal-600 hover:bg-teal-500 text-white"
+                                size="lg"
+                                onClick={() => setContactSelectorOpen(true)}
+                            >
+                                <Video className="mr-2 h-5 w-5" />
+                                Start Video Call
+                            </Button>
+                        </div>
 
-                    {/* Call History List */}
-                    <div>
-                        <h3 className="text-lg font-semibold mb-4 text-white">Recent Calls</h3>
-                        {callHistory.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <p>No call history yet</p>
-                                <p className="text-sm mt-2">Start your first video call!</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {callHistory.map((call) => (
-                                    <div
-                                        key={call.id}
-                                        className="p-4 border border-white/5 rounded-lg hover:bg-white/5 transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-teal-500/10 rounded-full">
-                                                    <Video className="h-5 w-5 text-teal-500" />
+                        {/* Call History List */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 text-white">Recent Calls</h3>
+                            {callHistory.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <p>No call history yet</p>
+                                    <p className="text-sm mt-2">Start your first video call!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {callHistory.map((call) => (
+                                        <div
+                                            key={call.id}
+                                            className="p-4 border border-white/5 rounded-lg hover:bg-white/5 transition-colors"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-teal-500/10 rounded-full">
+                                                        <Video className="h-5 w-5 text-teal-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white">
+                                                            {call.participants.length} participant{call.participants.length !== 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-sm text-slate-400">
+                                                            {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-white">
-                                                        {call.participants.length} participant{call.participants.length !== 1 ? 's' : ''}
-                                                    </p>
-                                                    <p className="text-sm text-slate-400">
-                                                        {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
-                                                    </p>
-                                                </div>
+                                                <Badge variant={call.status === "active" ? "default" : "secondary"} className={call.status === "active" ? "bg-teal-500" : "bg-slate-700"}>
+                                                    {call.status}
+                                                </Badge>
                                             </div>
-                                            <Badge variant={call.status === "active" ? "default" : "secondary"} className={call.status === "active" ? "bg-teal-500" : "bg-slate-700"}>
-                                                {call.status}
-                                            </Badge>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </main>
-            )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                )
+            }
 
             <Footer isCompact className="mt-auto border-t border-white/5 bg-slate-950/80 backdrop-blur-md pb-0 px-2" />
-        </aside>
+        </aside >
     );
 
     // Desktop: Two-pane layout

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Plus, Trash2, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ interface TodoListProps {
     onTaskComplete?: (xp: number) => void;
 }
 
-export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
+export const TodoList = memo(function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
     const [newTask, setNewTask] = useState("");
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
 
@@ -176,4 +176,4 @@ export function TodoList({ todos, setTodos, onTaskComplete }: TodoListProps) {
             </div>
         </div>
     );
-}
+});

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo, useTransition } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,8 @@ interface LectureFormData {
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export default function Timetable() {
-  const [lectures, setLectures] = useState<Lecture[]>([]);
+const Timetable = memo(function Timetable() {
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
   const [formData, setFormData] = useState<LectureFormData>({
@@ -41,35 +42,31 @@ export default function Timetable() {
     location: "",
   });
 
-  useEffect(() => {
-    loadLectures();
-  }, []);
-
-  const loadLectures = async () => {
-    try {
+  // Use React Query for persistent caching - subsequent loads will be instant!
+  const { data: lectures = [], isLoading } = useQuery({
+    queryKey: ['timetable-lectures'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return [];
+
       const { data, error } = await supabase
         .from("timetable_lectures")
         .select("*")
         .eq("user_id", user.id)
         .order("day", { ascending: true })
         .order("time", { ascending: true });
+
       if (error) {
-        console.error("Error loading lectures:", error);
-        if (error.code === '42P01' || error.message?.includes('timetable_lectures') || error.message?.includes('schema cache')) {
-          // Table doesn't exist - silently fail, user will see error when trying to add
-          setLectures([]);
-          return;
+        if (error.code === '42P01' || error.message?.includes('timetable_lectures')) {
+          return [];
         }
         throw error;
       }
-      setLectures(data || []);
-    } catch (e: any) {
-      console.error("Error loading lectures:", e);
-      setLectures([]);
-    }
-  };
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
 
   const saveLecture = async () => {
     try {
@@ -133,7 +130,8 @@ export default function Timetable() {
       setDialogOpen(false);
       setEditingLecture(null);
       setFormData({ day: "Monday", startTime: "", endTime: "", subject: "", instructor: "", location: "" });
-      await loadLectures();
+      // Invalidate cache to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['timetable-lectures'] });
     } catch (e: any) {
       console.error("Save lecture error:", e);
       toast.error("Failed to save lecture: " + (e.message || "Unknown error"));
@@ -151,7 +149,7 @@ export default function Timetable() {
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success("Lecture deleted");
-      await loadLectures();
+      queryClient.invalidateQueries({ queryKey: ['timetable-lectures'] });
     } catch (e: any) {
       toast.error("Failed to delete lecture");
     }
@@ -299,21 +297,19 @@ export default function Timetable() {
                 <button
                   key={day}
                   onClick={() => setSelectedDay(day)}
-                  className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${isSelected
+                  className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[60px] sm:min-h-[64px] ${isSelected
                     ? "bg-primary text-primary-foreground"
                     : isToday
                       ? "bg-accent text-accent-foreground border"
                       : "hover:bg-accent/50"
                     }`}
                 >
-                  <div className="flex flex-col items-center gap-1">
+                  <div className="flex flex-col items-center justify-center h-full gap-0.5">
                     <span className="hidden sm:inline">{day}</span>
                     <span className="sm:hidden">{day.slice(0, 3)}</span>
-                    {dayLectures.length > 0 && (
-                      <span className={`text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                        {dayLectures.length}
-                      </span>
-                    )}
+                    <span className={`text-xs min-h-[16px] flex items-center ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                      {dayLectures.length > 0 && dayLectures.length}
+                    </span>
                   </div>
                 </button>
               );
@@ -391,4 +387,6 @@ export default function Timetable() {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default Timetable;

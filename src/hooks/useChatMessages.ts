@@ -30,7 +30,7 @@ export function useChatMessages(groupId: string | undefined) {
     const queryClient = useQueryClient();
     const isInitialLoadRef = useRef(true);
 
-    // Fetch messages with enhanced caching
+    // Fetch messages with enhanced caching optimized for instant updates
     const { data: messages = [], isLoading, isError } = useQuery({
         queryKey: ['messages', groupId],
         queryFn: async () => {
@@ -46,11 +46,11 @@ export function useChatMessages(groupId: string | undefined) {
             return data as Message[];
         },
         enabled: !!groupId,
-        staleTime: 30 * 1000, // 30 seconds - mark data as stale faster to refetch on return
-        gcTime: 15 * 60 * 1000, // 15 minutes - keeps inactive chat data in cache
-        refetchOnWindowFocus: true, // Refetch when user returns to tab
-        refetchOnMount: 'always', // Always refetch when component mounts (user returns to chat)
-        refetchInterval: false, // Don't use interval, rely on real-time
+        staleTime: 0, // Always consider data stale for immediate refetch
+        gcTime: 5 * 60 * 1000, // 5 minutes - keeps data in cache but allows instant updates
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        refetchInterval: false, // Rely on real-time only
     });
 
     // Send Message Mutation with Optimistic Update
@@ -134,12 +134,7 @@ export function useChatMessages(groupId: string | undefined) {
 
         console.log("[Realtime] Setting up subscription for group:", groupId);
 
-        const channel = supabase.channel(`group_chat_${groupId}`, {
-            config: {
-                broadcast: { self: false }, // Don't broadcast to sender
-                presence: { key: groupId }
-            }
-        })
+        const channel = supabase.channel(`group_chat_${groupId}`)
             .on(
                 'postgres_changes',
                 {
@@ -164,6 +159,10 @@ export function useChatMessages(groupId: string | undefined) {
                         sender: senderData,
                         status: 'sent' as const
                     };
+
+                    // Get current user to check if this is their message
+                    const { data: { user } } = await supabase.auth.getUser();
+                    const isOwnMessage = user?.id === newMessage.sender_id;
 
                     queryClient.setQueryData<Message[]>(['messages', groupId], (current = []) => {
                         // Check if message already exists (deduplication)
@@ -192,6 +191,68 @@ export function useChatMessages(groupId: string | undefined) {
                         console.log("[Realtime] Adding new message:", newMessage.id);
                         return [...current, messageWithSender];
                     });
+
+                    // Optimize: Update chat list cache directly instead of refetching
+                    // This is MUCH faster than a full refetch (no database queries)
+                    queryClient.setQueryData(['chats'], (oldData: any) => {
+                        if (!oldData?.groups) return oldData;
+
+                        const updatedGroups = oldData.groups.map((group: any) => {
+                            if (group.id === groupId) {
+                                return {
+                                    ...group,
+                                    lastMessage: {
+                                        content: newMessage.content,
+                                        created_at: newMessage.created_at,
+                                        sender_name: senderData?.username || 'Unknown'
+                                    },
+                                    unreadCount: isOwnMessage ? group.unreadCount : (group.unreadCount || 0) + 1
+                                };
+                            }
+                            return group;
+                        });
+
+                        // Re-sort: pinned first, then by latest message
+                        const sorted = [...updatedGroups].sort((a, b) => {
+                            if (a.is_pinned && !b.is_pinned) return -1;
+                            if (!a.is_pinned && b.is_pinned) return 1;
+                            const aTime = a.lastMessage?.created_at || a.created_at;
+                            const bTime = b.lastMessage?.created_at || b.created_at;
+                            return new Date(bTime).getTime() - new Date(aTime).getTime();
+                        });
+
+                        return { groups: sorted };
+                    });
+
+                    // Trigger browser notification for messages from other users
+                    console.log("[Notifications] Checking if should notify:", {
+                        isOwnMessage,
+                        hasSenderData: !!senderData,
+                        senderId: newMessage.sender_id
+                    });
+
+                    if (!isOwnMessage && senderData) {
+                        console.log("[Notifications] 🔔 Dispatching notification event for:", senderData.username);
+
+                        // Dispatch custom event with message data for notification handling
+                        const event = new CustomEvent('new-message', {
+                            detail: {
+                                groupId,
+                                messageId: newMessage.id,
+                                senderId: newMessage.sender_id,
+                                senderName: senderData.username,
+                                senderAvatar: senderData.avatar_url,
+                                content: newMessage.content,
+                                audio_url: newMessage.audio_url,
+                                file_url: newMessage.file_url,
+                            }
+                        });
+
+                        window.dispatchEvent(event);
+                        console.log("[Notifications] ✅ Event dispatched successfully");
+                    } else {
+                        console.log("[Notifications] ❌ Skipping notification (own message or no sender data)");
+                    }
                 }
             )
             .on(

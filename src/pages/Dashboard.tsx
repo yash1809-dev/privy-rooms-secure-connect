@@ -1,12 +1,13 @@
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo, lazy, Suspense } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { FocusTimer } from "@/components/dashboard/FocusTimer";
-import { FocusPlant } from "@/components/dashboard/FocusPlant";
-import VoiceNotesToText from "@/components/VoiceNotesToText";
-import Timetable from "@/components/Timetable";
+// Lazy load heavy components for better initial load
+const FocusTimer = lazy(() => import("@/components/dashboard/FocusTimer").then(m => ({ default: m.FocusTimer })));
+const FocusPlant = lazy(() => import("@/components/dashboard/FocusPlant").then(m => ({ default: m.FocusPlant })));
+const VoiceNotesToText = lazy(() => import("@/components/VoiceNotesToText"));
+const Timetable = lazy(() => import("@/components/Timetable"));
 import { TodoList } from "@/components/dashboard/TodoList";
 import { NeuralCouple } from "@/components/dashboard/NeuralCouple";
 import { Footer } from "@/components/Footer";
@@ -47,6 +48,7 @@ import { markTodayAsActive, calculateStreak, getXP, addXP, getProgression } from
 import { toast } from "sonner";
 import { useDailyState } from "@/hooks/useDailyState";
 import { useLocalStorage } from "@/hooks/useDebouncedLocalStorage";
+import { ZoneSkeleton } from "@/components/skeleton/SkeletonLoaders";
 
 // --- CONSTANTS ---
 const SECTIONS = [
@@ -393,11 +395,13 @@ export default function Dashboard() {
                   <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                     <Zap className="w-24 h-24 text-teal-500" />
                   </div>
-                  <FocusTimer
-                    onSessionComplete={handleSessionComplete}
-                    setMinutesFocused={setMinutesFocused}
-                    onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
-                  />
+                  <Suspense fallback={<ZoneSkeleton />}>
+                    <FocusTimer
+                      onSessionComplete={handleSessionComplete}
+                      setMinutesFocused={setMinutesFocused}
+                      onStatusChange={(active) => setBuddyStatus(active ? 'focusing' : 'idle')}
+                    />
+                  </Suspense>
                 </Card>
               </div>
 
@@ -408,7 +412,9 @@ export default function Dashboard() {
                     <p className="text-[10px] font-mono text-teal-500 tracking-[0.3em] uppercase">Neural Growth Engine</p>
                     <h4 className="text-2xl font-black text-white italic tracking-tighter">SYNAPTIC BOTANY</h4>
                   </div>
-                  <FocusPlant minutesFocused={minutesFocused} />
+                  <Suspense fallback={<div className="h-64 w-64 bg-white/5 rounded-full animate-pulse" />}>
+                    <FocusPlant minutesFocused={minutesFocused} />
+                  </Suspense>
                   <div className="pt-4">
                     <Badge variant="outline" className="bg-teal-500/10 border-teal-500/20 text-teal-400 font-mono text-[9px] px-4 py-1">
                       HYDRATION: OPTIMAL
@@ -428,7 +434,9 @@ export default function Dashboard() {
                   <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                     <GraduationCap className="w-64 h-64 text-indigo-500" />
                   </div>
-                  <Timetable />
+                  <Suspense fallback={<ZoneSkeleton />}>
+                    <Timetable />
+                  </Suspense>
                 </Card>
               </div>
               <div className="hidden lg:block lg:col-span-4 space-y-6 lg:pr-8">
@@ -480,7 +488,9 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    <VoiceNotesToText onPrecisionChange={setVocalPrecision} />
+                    <Suspense fallback={<ZoneSkeleton />}>
+                      <VoiceNotesToText onPrecisionChange={setVocalPrecision} />
+                    </Suspense>
                   </div>
                 </Card>
               </div>
@@ -703,24 +713,24 @@ function MapPath() {
   );
 }
 
-function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color, icon: Icon }: any) {
+const MapZone = memo(function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color, icon: Icon }: any) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  // Memoize the observer callback to prevent unnecessary effect re-runs
+  const handleIntersection = useCallback(([entry]: IntersectionObserverEntry[]) => {
+    if (entry.isIntersecting) {
+      setIsVisible(true);
+      setUnlocked((prev: string[]) => prev.includes(id) ? prev : [...prev, id]);
+      setActive(id);
+    }
+  }, [id, setUnlocked, setActive]);
+
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          setUnlocked((prev: string[]) => prev.includes(id) ? prev : [...prev, id]);
-          setActive(id);
-        }
-      },
-      { threshold: 0.3 }
-    );
+    const observer = new IntersectionObserver(handleIntersection, { threshold: 0.3 });
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [id, setUnlocked, setActive]);
+  }, [handleIntersection]);
 
   // Uniform glassmorphism - no color-specific shades
   const textColors: any = { teal: "text-teal-400", indigo: "text-indigo-400", pink: "text-pink-400", amber: "text-amber-400" };
@@ -758,7 +768,7 @@ function MapZone({ id, title, subtitle, children, setUnlocked, setActive, color,
       </div>
     </section>
   );
-}
+});
 
 function MiniCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
