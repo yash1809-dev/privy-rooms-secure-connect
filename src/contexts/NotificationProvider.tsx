@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types
 interface NotificationData {
@@ -11,6 +12,12 @@ interface NotificationData {
     groupId?: string;
     callerId?: string;
     timestamp: number;
+}
+
+interface UserGroup {
+    id: string;
+    name: string;
+    avatar_url?: string;
 }
 
 interface NotificationContextType {
@@ -62,6 +69,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     const [isSupported, setIsSupported] = useState(false);
     const [showPermissionDialog, setShowPermissionDialog] = useState(false);
     const [activeNotifications, setActiveNotifications] = useState<NotificationData[]>([]);
+    const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
 
     // Refs
     const activeGroupIdRef = useRef<string | null>(null);
@@ -69,13 +77,14 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     const ringtoneSoundRef = useRef<HTMLAudioElement | null>(null);
     const lastSoundTimeRef = useRef<number>(0);
     const permissionAskedRef = useRef(false);
+    const showMessageNotificationRef = useRef<typeof showMessageNotification | null>(null);
 
     // Constants
     const SOUND_THROTTLE_MS = 1000; // Max 1 sound per second
     const NOTIFICATION_DURATION = 5000; // 5 seconds
     const PERMISSION_STORAGE_KEY = 'notification_permission_asked';
 
-    // Initialize
+    // Initialize sounds and permission dialog
     useEffect(() => {
         // Check if notifications are supported
         if ('Notification' in window) {
@@ -107,6 +116,110 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         };
     }, []);
 
+    // Fetch user's groups for global subscriptions
+    useEffect(() => {
+        const fetchUserGroups = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: memberships } = await supabase
+                .from('group_members')
+                .select('group_id, groups(id, name, avatar_url)')
+                .eq('user_id', user.id);
+
+            if (memberships) {
+                const groups = memberships
+                    .filter(m => m.groups)
+                    .map(m => ({
+                        id: (m.groups as any).id,
+                        name: (m.groups as any).name,
+                        avatar_url: (m.groups as any).avatar_url,
+                    }));
+                setUserGroups(groups);
+                console.log('[NotificationProvider] Loaded', groups.length, 'groups for global subscriptions');
+            }
+        };
+
+        fetchUserGroups();
+
+        // Listen for auth changes to refetch groups
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN') {
+                fetchUserGroups();
+            } else if (event === 'SIGNED_OUT') {
+                setUserGroups([]);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // GLOBAL REAL-TIME SUBSCRIPTIONS: Subscribe to all user's groups
+    useEffect(() => {
+        if (userGroups.length === 0) return;
+
+        console.log('[NotificationProvider] Setting up global subscriptions for', userGroups.length, 'groups');
+
+        const channels: ReturnType<typeof supabase.channel>[] = [];
+
+        userGroups.forEach((group) => {
+            const channel = supabase
+                .channel(`global-notif-${group.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'group_messages',
+                        filter: `group_id=eq.${group.id}`
+                    },
+                    async (payload) => {
+                        const newMessage = payload.new as any;
+
+                        // Get current user
+                        const { data: { user } } = await supabase.auth.getUser();
+                        const isOwnMessage = user?.id === newMessage.sender_id;
+
+                        // Skip own messages
+                        if (isOwnMessage) return;
+
+                        // Fetch sender info
+                        const { data: senderData } = await supabase
+                            .from('profiles')
+                            .select('username, avatar_url')
+                            .eq('id', newMessage.sender_id)
+                            .single();
+
+                        if (senderData && showMessageNotificationRef.current) {
+                            console.log('[NotificationProvider] 📨 New message in:', group.name);
+
+                            showMessageNotificationRef.current({
+                                groupId: group.id,
+                                groupName: group.name,
+                                senderName: senderData.username || 'Unknown',
+                                senderAvatar: senderData.avatar_url || group.avatar_url,
+                                content: newMessage.content || '',
+                                isAudio: !!newMessage.audio_url,
+                                isFile: !!newMessage.file_url,
+                            });
+                        }
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('[NotificationProvider] ✅ Subscribed to:', group.name);
+                    }
+                });
+
+            channels.push(channel);
+        });
+
+        return () => {
+            console.log('[NotificationProvider] Cleaning up global subscriptions');
+            channels.forEach(channel => supabase.removeChannel(channel));
+        };
+    }, [userGroups]);
+
     // Update active group based on current route
     useEffect(() => {
         const match = location.pathname.match(/\/chats\/([^/]+)/);
@@ -116,9 +229,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             activeGroupIdRef.current = null;
         }
     }, [location.pathname]);
-
-    // Store showMessageNotification in ref for event listener
-    const showMessageNotificationRef = useRef<typeof showMessageNotification | null>(null);
 
     // Listen for new-message events from real-time subscriptions
     useEffect(() => {

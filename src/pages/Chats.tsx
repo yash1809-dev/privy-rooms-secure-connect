@@ -240,25 +240,7 @@ export default function Chats() {
 
                             return { groups: sorted };
                         });
-
-                        // Dispatch notification event for messages from other users
-                        if (!isOwnMessage && senderData) {
-                            const event = new CustomEvent('new-message', {
-                                detail: {
-                                    groupId: group.id,
-                                    groupName: group.name,
-                                    messageId: newMessage.id,
-                                    senderId: newMessage.sender_id,
-                                    senderName: senderData.username,
-                                    senderAvatar: group.avatar_url,
-                                    content: newMessage.content,
-                                    audio_url: newMessage.audio_url,
-                                    file_url: newMessage.file_url,
-                                }
-                            });
-                            window.dispatchEvent(event);
-                            console.log("[Chat List] 🔔 Notification event dispatched for:", group.name);
-                        }
+                        // Note: Notifications are handled globally by NotificationProvider
                     }
                 )
                 .subscribe((status) => {
