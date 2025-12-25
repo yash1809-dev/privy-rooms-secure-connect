@@ -361,15 +361,21 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             }, NOTIFICATION_DURATION);
         }
 
-        // Show browser notification if page is not visible OR permission granted
-        if (document.visibilityState !== 'visible' && permission === 'granted') {
+        // ALWAYS show browser notification when permission is granted
+        // This ensures it works on mobile background, other apps, etc.
+        console.log('[Notifications] Checking browser notification - permission:', permission, 'Notification API:', 'Notification' in window);
+
+        if (permission === 'granted') {
             try {
+                console.log('[Notifications] Creating browser notification for:', notificationData.title);
+
                 const browserNotification = new Notification(notificationData.title, {
                     body: notificationData.body,
                     icon: data.senderAvatar || '/favicon.ico',
                     tag: `chat-${data.groupId}`,
                     badge: '/favicon.ico',
                     requireInteraction: false,
+                    silent: document.visibilityState === 'visible', // Silent if already showing in-app
                 });
 
                 browserNotification.onclick = () => {
@@ -378,10 +384,21 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
                     browserNotification.close();
                 };
 
+                browserNotification.onshow = () => {
+                    console.log('[Notifications] ✅ Browser notification SHOWN');
+                };
+
+                browserNotification.onerror = (e) => {
+                    console.error('[Notifications] ❌ Browser notification ERROR:', e);
+                };
+
                 setTimeout(() => browserNotification.close(), NOTIFICATION_DURATION);
+                console.log('[Notifications] Browser notification created successfully');
             } catch (error) {
                 console.error('[Notifications] Browser notification error:', error);
             }
+        } else {
+            console.log('[Notifications] ⚠️ Skipping browser notification - permission not granted:', permission);
         }
 
         console.log('[Notifications] Message notification shown:', data.groupName);
