@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { StoryProgressProvider } from "@/contexts/StoryProgressProvider";
+import { NotificationProvider } from "@/contexts/NotificationProvider";
+import { NotificationToast } from "@/components/notifications/NotificationToast";
+import { NotificationPermissionDialog } from "@/components/notifications/NotificationPermissionDialog";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/AppLayout";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -51,31 +54,37 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<PageSkeleton />}>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/features" element={<Features />} />
-                <Route path="/auth/spotify/callback" element={<SpotifyAuthCallback />} />
+            <NotificationProvider>
+              {/* Notification UI Components */}
+              <NotificationToast />
+              <NotificationPermissionDialog />
 
-                {/* Authenticated routes with persistent layout */}
-                <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/chats" element={<Chats />} />
-                  <Route path="/chats/:groupId" element={<Chats />} />
-                  <Route path="/profile" element={<Profile />} />
-                </Route>
+              <Suspense fallback={<PageSkeleton />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<Index />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/features" element={<Features />} />
+                  <Route path="/auth/spotify/callback" element={<SpotifyAuthCallback />} />
 
-                {/* Authenticated routes without persistent layout (full-screen) */}
-                <Route path="/room/:id" element={<AuthGuard><AppLayout /><Room /></AuthGuard>} />
-                {/* Redirect old group route to new chats route */}
-                <Route path="/group/:id" element={<AuthGuard><AppLayout /><Group /></AuthGuard>} />
+                  {/* Authenticated routes with persistent layout */}
+                  <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/chats" element={<Chats />} />
+                    <Route path="/chats/:groupId" element={<Chats />} />
+                    <Route path="/profile" element={<Profile />} />
+                  </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+                  {/* Authenticated routes without persistent layout (full-screen) */}
+                  <Route path="/room/:id" element={<AuthGuard><AppLayout /><Room /></AuthGuard>} />
+                  {/* Redirect old group route to new chats route */}
+                  <Route path="/group/:id" element={<AuthGuard><AppLayout /><Group /></AuthGuard>} />
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </NotificationProvider>
           </BrowserRouter>
         </TooltipProvider>
       </StoryProgressProvider>
@@ -84,3 +93,4 @@ const App = () => (
 );
 
 export default App;
+

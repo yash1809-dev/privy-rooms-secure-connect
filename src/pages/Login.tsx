@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,19 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        setCheckingAuth(false);
+      }
+    });
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +62,11 @@ export default function Login() {
     }
     // Note: Don't set loading to false on success, let navigation handle it
   };
+
+  // Return nothing while checking auth (redirect happens quickly)
+  if (checkingAuth) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--gradient-subtle)] p-4">

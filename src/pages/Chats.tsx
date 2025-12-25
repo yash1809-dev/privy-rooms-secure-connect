@@ -25,7 +25,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { UserSearchDialog } from "@/components/UserSearchDialog";
 import { useVideoCalls } from "@/hooks/useVideoCalls";
 import { Footer } from "@/components/Footer";
-import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
+import { useNotifications } from "@/contexts/NotificationProvider";
 
 interface Group {
     id: string;
@@ -62,8 +62,8 @@ export default function Chats() {
     // Video calling hook
     const { activeCallId, activeCallParticipants, startCall, setActiveCallId } = useVideoCalls();
 
-    // Browser notifications hook
-    const { permission, requestPermission, showNotification, setActiveGroupId } = useBrowserNotifications();
+    // Notifications hook
+    const { permission, requestPermission, setActiveGroupId } = useNotifications();
 
     // Use React Query for data caching
     const { data: cachedData, isLoading: queriesLoading } = useChatsData();
@@ -111,68 +111,12 @@ export default function Chats() {
         setActiveGroupId(groupId || null);
     }, [groupId, setActiveGroupId]);
 
-    // Store showNotification in a ref to avoid re-render loop
-    const showNotificationRef = useRef(showNotification);
-    useEffect(() => {
-        showNotificationRef.current = showNotification;
-    }, [showNotification]);
-
-    // Store groups in a ref to avoid re-render loop
-    const groupsRef = useRef(groups);
-    useEffect(() => {
-        groupsRef.current = groups;
-    }, [groups]);
-
     // Store queryClient in a ref to use in subscription callbacks
     const queryClientRef = useRef(queryClient);
     useEffect(() => {
         queryClientRef.current = queryClient;
     }, [queryClient]);
 
-    // Listen for new message events and show notifications
-    // Uses refs to avoid dependency issues and infinite loops
-    useEffect(() => {
-        console.log("[Notifications] Setting up event listener (once)");
-
-        const handleNewMessage = async (event: CustomEvent) => {
-            console.log("[Notifications] 📨 Received new-message event:", event.detail);
-
-            const { groupId: msgGroupId, senderName, content, audio_url, file_url } = event.detail;
-
-            // Get group name for notification-use ref for latest value
-            const group = groupsRef.current.find(g => g.id === msgGroupId);
-            const groupName = group?.name || 'Unknown Group';
-
-            console.log("[Notifications] Group found:", groupName, "for ID:", msgGroupId);
-
-            // Format message preview
-            let messagePreview = content;
-            if (audio_url) {
-                messagePreview = '🎤 Voice message';
-            } else if (file_url) {
-                messagePreview = '📎 Attachment';
-            }
-
-            // Show browser notification-use ref to avoid dependency
-            await showNotificationRef.current({
-                title: groupName,
-                body: `${senderName}: ${messagePreview}`,
-                icon: group?.avatar_url || undefined,
-                tag: msgGroupId,
-                data: { groupId: msgGroupId },
-            });
-
-            console.log("[Notifications] showNotification completed");
-        };
-
-        window.addEventListener('new-message', handleNewMessage as EventListener);
-        console.log("[Notifications] Event listener registered");
-
-        return () => {
-            console.log("[Notifications] Cleaning up event listener");
-            window.removeEventListener('new-message', handleNewMessage as EventListener);
-        };
-    }, []); // Empty dependency array-uses refs for latest values
 
     // Update filtered groups whenever groups or search changes
     useEffect(() => {
@@ -296,6 +240,25 @@ export default function Chats() {
 
                             return { groups: sorted };
                         });
+
+                        // Dispatch notification event for messages from other users
+                        if (!isOwnMessage && senderData) {
+                            const event = new CustomEvent('new-message', {
+                                detail: {
+                                    groupId: group.id,
+                                    groupName: group.name,
+                                    messageId: newMessage.id,
+                                    senderId: newMessage.sender_id,
+                                    senderName: senderData.username,
+                                    senderAvatar: group.avatar_url,
+                                    content: newMessage.content,
+                                    audio_url: newMessage.audio_url,
+                                    file_url: newMessage.file_url,
+                                }
+                            });
+                            window.dispatchEvent(event);
+                            console.log("[Chat List] 🔔 Notification event dispatched for:", group.name);
+                        }
                     }
                 )
                 .subscribe((status) => {
